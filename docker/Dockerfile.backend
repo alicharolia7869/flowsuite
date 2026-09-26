@@ -1,0 +1,35 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy root prisma schema and backend package files
+COPY prisma ./prisma
+COPY backend/package*.json ./backend/
+
+WORKDIR /app/backend
+RUN npm ci
+
+# Copy backend source code
+COPY backend ./
+
+# Generate Prisma client and build TypeScript
+RUN npx prisma generate --schema=../prisma/schema.prisma
+RUN npm run build
+
+# Production Runner Stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app/backend
+ENV NODE_ENV=production
+
+COPY prisma /app/prisma
+COPY backend/package*.json ./
+RUN npm ci --only=production
+
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/backend/node_modules/@prisma ./node_modules/@prisma
+
+EXPOSE 5000
+
+CMD ["node", "dist/server.js"]
