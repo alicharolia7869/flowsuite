@@ -53,27 +53,34 @@ class MemoryRedisFallback {
 let redisClient: Redis | MemoryRedisFallback;
 let isRealRedis = false;
 
-try {
-  const client = new Redis(env.REDIS_URL, {
-    maxRetriesPerRequest: 1,
-    retryStrategy: () => null, // don't loop endlessly if redis is not running locally
-    lazyConnect: true,
-  });
+const isLocalhostRedis = !env.REDIS_URL || env.REDIS_URL.includes('localhost') || env.REDIS_URL.includes('127.0.0.1');
+const shouldUseMemoryRedis = process.env.FORCE_MEMORY_REDIS || (Boolean(process.env.VERCEL) && isLocalhostRedis);
 
-  client.on('error', (err) => {
-    // Suppress unhandled crash if redis is not running
-  });
+if (!shouldUseMemoryRedis) {
+  try {
+    const client = new Redis(env.REDIS_URL, {
+      maxRetriesPerRequest: 1,
+      retryStrategy: () => null, // don't loop endlessly if redis is not running locally
+      lazyConnect: true,
+    });
 
-  // Test connection asynchronously
-  client.connect().then(() => {
-    isRealRedis = true;
-    console.log('Connected to Redis server successfully.');
-  }).catch(() => {
-    console.log('Redis server not available. Using in-memory Redis fallback for rate limiting & cache.');
-  });
+    client.on('error', (_err) => {
+      // Suppress unhandled crash if redis is not running
+    });
 
-  redisClient = client;
-} catch (e) {
+    // Test connection asynchronously
+    client.connect().then(() => {
+      isRealRedis = true;
+      console.log('Connected to Redis server successfully.');
+    }).catch(() => {
+      console.log('Redis server not available. Using in-memory Redis fallback for rate limiting & cache.');
+    });
+
+    redisClient = client;
+  } catch (e) {
+    redisClient = new MemoryRedisFallback();
+  }
+} else {
   redisClient = new MemoryRedisFallback();
 }
 

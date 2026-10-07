@@ -668,10 +668,16 @@ export class MemoryDatabase {
 
 export const memoryDb = new MemoryDatabase();
 
+// Eagerly initiate in-memory database seeding so mock data is immediately ready
+const seedPromise = memoryDb.seed();
+
+const isLocalhostDb = !env.DATABASE_URL || env.DATABASE_URL.includes('localhost') || env.DATABASE_URL.includes('127.0.0.1');
+const shouldUseMemoryDb = process.env.FORCE_MEMORY_DB || (Boolean(process.env.VERCEL) && isLocalhostDb);
+
 // Attempt PostgreSQL client connection, or fallback to memoryDb
 let activeClient: any = memoryDb;
 
-if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !process.env.FORCE_MEMORY_DB) {
+if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb) {
   try {
     const realPrisma = new PrismaClient({
       datasources: {
@@ -690,24 +696,38 @@ if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !process.env.FORCE_ME
       })
       .catch(() => {
         console.log('PostgreSQL database server not reachable. Initializing high-speed in-memory database store.');
-        memoryDb.seed();
         activeClient = memoryDb;
       });
   } catch {
-    memoryDb.seed();
     activeClient = memoryDb;
   }
 } else {
-  memoryDb.seed();
   activeClient = memoryDb;
 }
 
 // Proxied prisma export allowing dynamic dispatch
 export const prisma: PrismaClient = new Proxy({} as any, {
   get(_target, prop) {
-    if (prop === '$connect') return () => activeClient.$connect();
-    if (prop === '$disconnect') return () => activeClient.$disconnect();
+    if (prop === '$connect') return () => (activeClient.$connect ? activeClient.$connect() : Promise.resolve());
+    if (prop === '$disconnect') return () => (activeClient.$disconnect ? activeClient.$disconnect() : Promise.resolve());
     if (prop === '$transaction') return (cb: any) => activeClient.$transaction(cb);
-    return (activeClient as any)[prop] || (memoryDb as any)[prop];
+
+    const client: any = activeClient || memoryDb;
+    const targetTable = client[prop] || (memoryDb as any)[prop];
+    if (!targetTable || typeof targetTable !== 'object') return targetTable;
+
+    // Wrap table methods to ensure seeding is completed when using memoryDb
+    return new Proxy(targetTable, {
+      get(t: any, method) {
+        const fn = t[method];
+        if (typeof fn !== 'function') return fn;
+        return async (...args: any[]) => {
+          if (activeClient === memoryDb || !activeClient) {
+            await seedPromise;
+          }
+          return fn.apply(t, args);
+        };
+      }
+    });
   }
 });
