@@ -57,6 +57,18 @@ export function errorHandler(
     return;
   }
 
+  // Malformed JSON Syntax Error
+  if (err instanceof SyntaxError && ('body' in err || (err as any).type === 'entity.parse.failed')) {
+    res.status(400).json({
+      error: {
+        code: 'BAD_REQUEST',
+        message: 'Malformed JSON payload in request body.',
+        status: 400,
+      },
+    });
+    return;
+  }
+
   // JWT Errors
   if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     res.status(401).json({
