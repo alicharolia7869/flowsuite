@@ -7,6 +7,8 @@ import {
   forgotPassword,
   resetPassword,
   getMe,
+  getInvitation,
+  acceptInvitation,
 } from './auth.controller';
 import {
   registerSchema,
@@ -14,6 +16,7 @@ import {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  acceptInvitationSchema,
 } from './auth.schema';
 import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/auth';
@@ -27,6 +30,8 @@ router.post('/refresh', validate(refreshTokenSchema), refresh);
 router.post('/logout', logout);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.get('/invitations/:token', getInvitation);
+router.post('/accept-invitation', validate(acceptInvitationSchema), acceptInvitation);
 router.get('/me', authenticate, getMe);
 
 export default router;

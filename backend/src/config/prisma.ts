@@ -282,6 +282,13 @@ class MemoryTable<T extends { id: string; [key: string]: any }> {
       });
     }
 
+    if (include.organization && item.organizationId) {
+      clone.organization = memoryDb.organization.items.find(o => o.id === item.organizationId) || null;
+    }
+    if (include.invitations && item.id) {
+      clone.invitations = memoryDb.invitation.items.filter(i => i.organizationId === item.id);
+    }
+
     return clone;
   }
 }
@@ -298,6 +305,7 @@ export class MemoryDatabase {
   usageCounter = new MemoryTable<any>();
   auditLog = new MemoryTable<any>();
   refreshToken = new MemoryTable<any>();
+  invitation = new MemoryTable<any>();
 
   async $connect() {
     return Promise.resolve();

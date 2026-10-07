@@ -5,6 +5,7 @@ import {
   createCheckout,
   handleWebhook,
   simulatePlanChange,
+  getInvoices,
 } from './billing.controller';
 import { createCheckoutSessionSchema, simulatePlanChangeSchema } from './billing.schema';
 import { authenticate } from '../../middleware/auth';
@@ -24,6 +25,15 @@ router.get('/plans', getPlans);
 
 // Authenticated Subscription & Billing routes
 router.get('/subscription', authenticate, requireTenantContext, trackApiUsage, getCurrentSubscription);
+
+router.get(
+  ['/invoices', '/billing/invoices'],
+  authenticate,
+  requireTenantContext,
+  requireRole(['OWNER']),
+  trackApiUsage,
+  getInvoices
+);
 
 router.post(
   ['/checkout', '/billing/checkout'],

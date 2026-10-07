@@ -1,189 +1,287 @@
 # FlowSuite — Multi-Tenant SaaS Workspace Platform
 
 [![CI/CD](https://github.com/flowsuite/flowsuite/actions/workflows/ci.yml/badge.svg)](https://github.com/flowsuite/flowsuite/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-35%20passed-emerald)](https://github.com/flowsuite/flowsuite)
-[![Coverage](https://img.shields.io/badge/coverage-77.9%25-brightgreen)](https://github.com/flowsuite/flowsuite)
+[![Tests](https://img.shields.io/badge/tests-65%20passed-emerald)](https://github.com/flowsuite/flowsuite)
+[![Coverage](https://img.shields.io/badge/coverage-81.0%25-brightgreen)](https://github.com/flowsuite/flowsuite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**FlowSuite** is an enterprise-grade multi-tenant B2B SaaS workspace platform engineered for teams, project execution, client relationship management, dynamic plan entitlements, and Stripe test billing.
+**FlowSuite** is an enterprise-grade multi-tenant B2B SaaS workspace platform engineered for teams, project execution, task workflows, customer relationship management, dynamic plan entitlements, and Stripe test billing.
 
 ---
 
-## 🚀 Key Highlights & Architecture
+## 1. Project Overview
 
-- **Strict Tenant Isolation**: Built from the ground up with SQL query-level scoping on all protected database queries. Organization A can **never** access or infer Organization B's data.
-- **Server-Side RBAC**: Exact 4-tier role hierarchy (`OWNER`, `ADMIN`, `MANAGER`, `MEMBER`) enforced at the API controller layer.
-- **Flexible Entitlement Engine**: Zero hardcoded plan names. Quotas (`SEAT_LIMIT`, `PROJECT_LIMIT`, `API_REQUEST_LIMIT`, `ADVANCED_ANALYTICS`) resolve dynamically through the organization's active plan.
-- **Stripe Test Mode Billing**: End-to-end checkout sessions, webhook handlers, and instant test simulation.
-- **Usage & Telemetry Dashboard**: Real-time seat utilization, project quotas, and API consumption charts powered by Recharts.
-- **Immutable Audit Logging**: Compliance audit trail recording administrative and sensitive tenant events with JSON metadata inspection.
-- **Interactive Swagger/OpenAPI Documentation**: Fully documented endpoints with request/response schemas served live at `/api/docs`.
-- **Automated Test Suite**: 35 automated integration tests verifying Authentication, RBAC, Plan Limit Enforcement, Cross-Tenant Isolation, and Billing with **77.9% backend statement coverage**.
+FlowSuite provides organizations with an isolated collaborative cockpit featuring:
+- **Authentication**: JWT access tokens, rotating refresh tokens, rate-limited login, and secure password reset.
+- **Multi-Tenancy**: Logical database separation ensuring zero cross-tenant data leakage.
+- **Role-Based Access Control (RBAC)**: Strict 4-tier server-side enforcement (`OWNER`, `ADMIN`, `MANAGER`, `MEMBER`).
+- **Core SaaS Entities**: Projects, tasks with assignee workflows, customers, team member invitations.
+- **Dynamic Entitlement Engine**: Database-driven plans (`FREE`, `STARTER`, `PROFESSIONAL`) with real-time usage quotas.
+- **Stripe Test Mode Billing**: Webhook-verified checkout, upgrades, downgrades, and invoices history.
+- **Telemetry & Quota Monitoring**: Live usage gauges and API request traffic trend charts.
+- **Immutable Audit Logging**: Searchable and paginated event records for compliance and auditability.
 
 ---
 
-## 🛠 Technology Stack
+## 2. Architecture
+
+FlowSuite follows a decoupled client-server architecture:
+
+```
+┌────────────────────────────────────────┐
+│   React 18 SPA (Vite + TailwindCSS)    │
+└───────────────────┬────────────────────┘
+                    │ HTTPS / REST API
+                    ▼
+┌────────────────────────────────────────┐
+│   Express.js / TypeScript REST API     │
+│   • Auth & Rate Limiter Middleware     │
+│   • Tenant Resolution Middleware       │
+│   • Server-Side RBAC Guard             │
+│   • Entitlement Enforcement Engine     │
+│   • Audit Logging Dispatcher           │
+└──────────┬──────────────────┬──────────┘
+           │                  │
+           ▼                  ▼
+┌────────────────────┐  ┌────────────────┐
+│ PostgreSQL 15 (DB) │  │  Redis 7 Cache │
+│ (via Prisma ORM)   │  │  & Rate Limits │
+└────────────────────┘  └────────────────┘
+```
+
+---
+
+## 3. Technology Stack
 
 ### Frontend
-- **React 18** + **Vite** + **TypeScript**
-- **Tailwind CSS** (curated dark SaaS palette, glassmorphism, responsive layout)
-- **React Router v6**
-- **TanStack Query (React Query)**
-- **React Hook Form**
-- **Recharts** (usage & API velocity telemetry)
-- **Lucide React** (modern iconography)
+- **Framework**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS (dark mode SaaS theme, glassmorphism)
+- **State & Server Cache**: TanStack React Query v5
+- **Routing**: React Router v6
+- **Forms**: React Hook Form
+- **Icons & Charts**: Lucide React, Recharts
 
 ### Backend
-- **Node.js** + **Express.js** + **TypeScript**
-- **REST API architecture** with versioned endpoints (`/api/v1`)
-- **PostgreSQL** + **Prisma ORM**
-- **JWT** (access tokens) + **Rotating Refresh Tokens** + **bcryptjs**
-- **Redis** + in-memory fallback for counters and rate limiting
-- **Stripe Node SDK** (test mode)
-- **Zod** schema validation
-- **Swagger UI** + OpenAPI 3.0
+- **Runtime**: Node.js 20 LTS + Express.js 4 + TypeScript 5
+- **Database & ORM**: PostgreSQL 15 + Prisma ORM 5
+- **Authentication**: JWT (`jsonwebtoken`), `bcryptjs`, Cookie Parser
+- **Validation**: Zod schema validation
+- **Caching & Limits**: Redis (`ioredis`) with memory fallback
+- **Billing**: Stripe Node SDK (`v17`)
+- **Documentation**: Swagger UI Express + OpenAPI 3.0
 
 ### Testing & Infrastructure
-- **Vitest** + **Supertest** + **V8 Coverage**
-- **Docker** + **Docker Compose**
-- **GitHub Actions** CI/CD pipeline
+- **Tests**: Vitest 2 + Supertest 7 + V8 Coverage
+- **Containerization**: Docker, Docker Compose
+- **CI/CD**: GitHub Actions
 
 ---
 
-## 📁 Project Structure
+## 4. Local Setup
 
-```
-FlowSuite/
-├── backend/
-│   ├── src/
-│   │   ├── config/             # Environment, Prisma DB, Redis clients
-│   │   ├── docs/               # OpenAPI/Swagger 3.0 specification
-│   │   ├── middleware/         # Auth, Tenant isolation, RBAC, Zod, Rate Limiter, API Tracker
-│   │   ├── modules/
-│   │   │   ├── auth/           # Login, Register, Refresh, Password Reset
-│   │   │   ├── organizations/  # Multi-tenant workspace endpoints
-│   │   │   ├── members/        # Team roster, Seat limit checks, Role changes
-│   │   │   ├── projects/       # Project lifecycle, Plan limit checks
-│   │   │   ├── tasks/          # Task management, Member vs Manager permissions
-│   │   │   ├── customers/      # Client CRM directory
-│   │   │   ├── billing/        # Stripe checkout, Webhooks, Dynamic plans
-│   │   │   ├── usage/          # Telemetry and quota consumption
-│   │   │   └── audit/          # Immutable compliance audit log
-│   │   ├── utils/              # JWT, Bcrypt, Audit logger, Entitlement Engine
-│   │   ├── app.ts              # Express setup, Swagger UI, error handling
-│   │   └── server.ts           # HTTP server bootstrap
-│   ├── tests/                  # 35 automated integration tests
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── api/                # API client with auto-refresh on 401
-│   │   ├── context/            # AuthContext (session & org switcher), ToastContext
-│   │   ├── components/         # Modals, ConfirmDialogs, Badges, ProgressBars, Layout
-│   │   ├── pages/              # Dashboard, Projects, Tasks, Customers, Team, Billing, Usage, Audit
-│   │   ├── App.tsx             # Route declarations
-│   │   └── index.css           # Tailwind design tokens
-│   └── package.json
-├── prisma/
-│   └── schema.prisma           # Relational multi-tenant PostgreSQL schema
-├── docker/
-│   ├── Dockerfile.backend      # Multi-stage production container
-│   ├── Dockerfile.frontend     # Nginx SPA production container
-│   └── nginx.conf              # Reverse proxy & history fallback
-├── .github/workflows/
-│   └── ci.yml                  # GitHub Actions CI/CD test & build pipeline
-├── docker-compose.yml          # Multi-container orchestration (Postgres, Redis, App)
-└── README.md
+### Prerequisites
+- Node.js >= 20.0.0
+- npm >= 9.0.0
+- Docker & Docker Compose (optional for containerized runs)
+
+### Installation
+Clone repository and install monorepo dependencies:
+
+```bash
+git clone https://github.com/flowsuite/flowsuite.git
+cd FlowSuite
+npm install
 ```
 
 ---
 
-## 🔑 Demo & Test Credentials
+## 5. Environment Variables
 
-The database initializes with seed organizations and test users across all four roles:
+Create `.env` in the repository root or use `.env.example`:
 
-| Organization | Plan Tier | Role | Email | Password |
+```env
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+
+# Database & Cache
+DATABASE_URL="postgresql://postgres:postgrespassword@localhost:5432/flowsuite?schema=public"
+REDIS_URL="redis://localhost:6379"
+
+# Security & Tokens
+JWT_SECRET="flowsuite_local_super_secret_jwt_access_key_2026"
+JWT_REFRESH_SECRET="flowsuite_local_super_secret_jwt_refresh_key_2026"
+
+# Stripe Test Mode
+STRIPE_SECRET_KEY="sk_test_mockKeyForFlowSuiteDemo12345"
+STRIPE_WEBHOOK_SECRET="whsec_mockSecretForFlowSuiteDemo12345"
+```
+
+---
+
+## 6. Database Setup
+
+Ensure PostgreSQL is running locally, or start the container:
+
+```bash
+docker compose up -d postgres redis
+```
+
+---
+
+## 7. Migrations
+
+Generate Prisma Client and push schema to database:
+
+```bash
+npm run prisma:generate
+npm run prisma:push
+```
+
+---
+
+## 8. Seed Data
+
+Populate default plans (`FREE`, `STARTER`, `PROFESSIONAL`), initial organizations (`Acme Corp`, `Stark Industries`, `Wayne Enterprises`), and users for all roles:
+
+```bash
+npm run prisma:seed
+```
+
+### Pre-Seeded Test Credentials
+
+| Organization | Plan | Role | Email | Password |
 | :--- | :--- | :--- | :--- | :--- |
-| **Acme Corp** | STARTER (10 seats, 20 proj) | `OWNER` | `owner@acme.com` | `Password123!` |
+| **Acme Corp** | STARTER | `OWNER` | `owner@acme.com` | `Password123!` |
 | **Acme Corp** | STARTER | `ADMIN` | `admin@acme.com` | `Password123!` |
 | **Acme Corp** | STARTER | `MANAGER` | `manager@acme.com` | `Password123!` |
 | **Acme Corp** | STARTER | `MEMBER` | `member@acme.com` | `Password123!` |
-| **Stark Industries** | PROFESSIONAL (50 seats, Unlimited) | `OWNER` | `owner@stark.com` | `Password123!` |
-| **Stark Industries** | PROFESSIONAL | `ADMIN` | `admin@stark.com` | `Password123!` |
-| **Wayne Enterprises** | FREE (3 seats, 2 proj max) | `OWNER` | `owner@wayne.com` | `Password123!` |
-
-> **Tip:** The Login Page features **1-Click Demo Credentials** buttons to instantly log in as any role without manual typing.
+| **Stark Industries** | PROFESSIONAL | `OWNER` | `owner@stark.com` | `Password123!` |
+| **Wayne Enterprises** | FREE | `OWNER` | `owner@wayne.com` | `Password123!` |
 
 ---
 
-## ⚡ Quick Start & Local Execution
+## 9. Running the Frontend
 
-### Prerequisites
-- Node.js >= 18
-- npm >= 9
+To start only the frontend development server:
 
-### 1. Install Dependencies
 ```bash
-# From workspace root
-npm install
-cd backend && npm install
-cd ../frontend && npm install
-cd ..
+npm run dev:frontend
 ```
-
-### 2. Run the Development Server
-```bash
-# Starts both Backend (port 5000) and Frontend (port 5173) concurrently
-npm run dev
-```
-
-- **Frontend Application**: [http://localhost:5173](http://localhost:5173)
-- **Backend REST API**: [http://localhost:5000](http://localhost:5000)
-- **Interactive Swagger Documentation**: [http://localhost:5000/api/docs](http://localhost:5000/api/docs)
+Access at [http://localhost:5173](http://localhost:5173).
 
 ---
 
-## 🧪 Running Automated Tests
+## 10. Running the Backend
 
-Run the test suite with coverage report:
+To start only the backend API server:
 
 ```bash
-cd backend
-npm test
+npm run dev:backend
 ```
-
-### Test Coverage Highlights:
-- **Tenant Isolation (`tests/tenant-isolation.test.ts`)**: Verifies that Organization B user is strictly rejected when attempting to access Organization A's projects, customers, or tasks; verifies header spoofing rejection.
-- **RBAC (`tests/rbac.test.ts`)**: Verifies `OWNER`, `ADMIN`, `MANAGER`, and `MEMBER` permissions across all endpoints.
-- **Plan Limits (`tests/plan-limits.test.ts`)**: Enforces `PLAN_LIMIT_REACHED` when attempting to create a 3rd project on the Free plan, and verifies dynamic entitlement unlocking upon plan upgrade.
-- **Billing & Audit (`tests/billing-and-usage.test.ts`)**: Verifies Stripe checkout sessions, webhook handlers, and audit trail pagination.
+Access at [http://localhost:5000](http://localhost:5000).
 
 ---
 
-## 🐳 Docker Compose Deployment
+## 11. Running with Docker Compose
 
-Run the complete multi-container stack:
+To build and run the full stack (PostgreSQL, Redis, Backend, Frontend) with one command:
 
 ```bash
 docker compose up --build
 ```
 
-Services launched:
-1. `flowsuite_frontend` (Nginx serving React SPA on `http://localhost:5173`)
-2. `flowsuite_backend` (Node.js API on `http://localhost:5000`)
-3. `flowsuite_postgres` (PostgreSQL 15 on port `5432`)
-4. `flowsuite_redis` (Redis 7 on port `6379`)
+Services:
+- **Frontend SPA**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:5000](http://localhost:5000)
+- **Swagger Docs**: [http://localhost:5000/api/docs](http://localhost:5000/api/docs)
+- **Postgres**: `localhost:5432`
+- **Redis**: `localhost:6379`
 
 ---
 
-## 💳 Stripe Test Setup
+## 12. Running Tests
 
-1. In `.env`, set:
-   ```env
-   STRIPE_SECRET_KEY=sk_test_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   ```
-2. Navigate to **Billing & Plans** in the FlowSuite dashboard.
-3. Select **Starter** (₹499/mo) or **Professional** (₹999/mo) and click **Pay with Stripe Checkout**.
-4. Use standard Stripe test card numbers (e.g. `4242 4242 4242 4242`).
-5. Webhooks dispatched to `/api/v1/billing/webhook` update subscription state immediately.
-6. **1-Click Simulation**: You can also use the **1-Click Test Upgrade** buttons to immediately test plan quota changes locally.
+Run the full Vitest automated test suite with coverage:
+
+```bash
+npm test
+```
+
+Or from backend directory:
+```bash
+cd backend && npm test
+```
+
+---
+
+## 13. Test Coverage
+
+The test suite validates:
+- **Auth**: User registration, login, JWT issuance, refresh rotation, logout, password reset.
+- **Multi-Tenancy**: Organization isolation, cross-tenant resource protection, header spoofing prevention.
+- **RBAC**: Server-side enforcement for `OWNER`, `ADMIN`, `MANAGER`, `MEMBER`.
+- **Plan Limits**: Seat limit and project limit enforcement on the Free plan, upgrade unlock.
+- **Stripe & Webhooks**: Checkout sessions, webhook verification, simulation, and invoice history.
+- **Invitations**: Secure token-based onboarding, expiration checks, single-org rule.
+- **Pagination**: Uniform pagination contract across all list endpoints.
+
+**Result: 65/65 tests passing, 81.02% statement coverage.**
+
+---
+
+## 14. Stripe Test-Mode Setup
+
+1. Configure Stripe API keys in `.env` (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`).
+2. Log in as an **OWNER** and visit `/billing`.
+3. Select an upgrade tier and click **Pay with Stripe Checkout**.
+4. Test cards: use standard `4242 4242 4242 4242`.
+5. Stripe webhooks dispatch to `/api/v1/billing/webhook` and immediately update the organization's plan and entitlements.
+6. **1-Click Test Upgrade**: Use the instant simulation buttons to test plan upgrades and downgrades without network hops.
+
+---
+
+## 15. Deployment
+
+- **Frontend**: Deployed to Vercel production at [https://flowsuite-one.vercel.app](https://flowsuite-one.vercel.app).
+- **Backend**: Containerized via Docker or deployable to any Node.js hosting platform (AWS, Railway, Render, Fly.io).
+
+---
+
+## 16. API Documentation
+
+Interactive Swagger documentation is served live at `/api/docs`:
+- Base URL: `http://localhost:5000/api/docs`
+- Documentation format: OpenAPI 3.0 specification
+- Covers all modules: Auth, Organizations, Members & Invitations, Projects, Tasks, Customers, Billing & Invoices, Usage, Audit Logs.
+
+---
+
+## 17. Multi-Tenancy Design
+
+Every tenant-owned record possesses an `organizationId`. Client-supplied tenant IDs are never trusted:
+1. `requireTenantContext` middleware checks the user's verified database memberships.
+2. Every database query injects tenant-level filtering (`WHERE organizationId = req.tenant.organizationId`).
+3. Single resource operations (`GET /projects/:id`, `PATCH /tasks/:id`) query by both entity ID and organization ID, preventing cross-tenant leakage.
+
+---
+
+## 18. RBAC Design
+
+Authorization is strictly enforced server-side:
+- **OWNER**: Full tenant control, billing management, role assignment, settings update, organization deletion.
+- **ADMIN**: Team invitations, project/task/customer management, usage telemetry, audit logs. Prohibited from billing or organization deletion.
+- **MANAGER**: Project/task/customer management and task assignment. Prohibited from inviting members or viewing audit logs.
+- **MEMBER**: Read access to assigned projects and tasks; status updates on assigned tasks only. Prohibited from editing title/assignee or modifying other members' records.
+
+---
+
+## 19. Subscription & Entitlement Design
+
+Plan limits are database-driven and resolved dynamically:
+- **FREE**: ₹0/month, 3 seats, 2 projects, 1,000 API requests/month, no advanced analytics.
+- **STARTER**: ₹499/month, 10 seats, 20 projects, 10,000 API requests/month, no advanced analytics.
+- **PROFESSIONAL**: ₹999/month, 50 seats, Unlimited projects, 100,000 API requests/month, advanced analytics.
+
+Entitlements are verified before resource creation using `assertEntitlementLimit(...)`. If a limit is reached, HTTP 403 `PLAN_LIMIT_REACHED` is returned with an actionable upgrade message.

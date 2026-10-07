@@ -6,6 +6,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../uti
 import { createAuditLog } from '../../utils/audit';
 import { AppError } from '../../middleware/errorHandler';
 import { clearLoginAttempts } from '../../middleware/rateLimiter';
+import { assertEntitlementLimit } from '../../utils/entitlements';
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -402,6 +403,188 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
           plan: m.organization.subscription?.plan?.name || 'STARTER',
           joinedAt: m.createdAt,
         })),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getInvitation(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { token } = req.params;
+
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        organization: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new AppError('Invitation not found or invalid token.', 'NOT_FOUND', 404);
+    }
+
+    if (invitation.status !== 'PENDING' || invitation.expiresAt < new Date()) {
+      throw new AppError('This invitation has expired or has already been accepted.', 'INVITATION_EXPIRED', 400);
+    }
+
+    res.status(200).json({
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        organizationName: invitation.organization?.name || 'FlowSuite Workspace',
+        organizationId: invitation.organizationId,
+        expiresAt: invitation.expiresAt,
+        status: invitation.status,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function acceptInvitation(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { token, name, password } = req.body;
+
+    const invitation = await prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        organization: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new AppError('Invitation not found or invalid token.', 'NOT_FOUND', 404);
+    }
+
+    if (invitation.status !== 'PENDING' || invitation.expiresAt < new Date()) {
+      throw new AppError('This invitation has expired or has already been accepted.', 'INVITATION_EXPIRED', 400);
+    }
+
+    // Enforce seat limit before accepting
+    await assertEntitlementLimit(invitation.organizationId, 'SEAT_LIMIT');
+
+    const normalizedEmail = invitation.email.toLowerCase().trim();
+
+    // Check if user already exists
+    let user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    let membership;
+    if (user) {
+      // Check if user already has ANY membership
+      const existingMembership = await prisma.membership.findFirst({
+        where: { userId: user.id },
+      });
+
+      if (existingMembership) {
+        if (existingMembership.organizationId === invitation.organizationId) {
+          // Pre-provisioned by inviteMember: activate account and set password
+          if (password) {
+            const passwordHash = await hashPassword(password);
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                ...(name && { name }),
+                passwordHash,
+              },
+            });
+          }
+          membership = existingMembership;
+        } else {
+          throw new AppError('Users can belong to only one organization for this project.', 'USER_ALREADY_IN_ANOTHER_ORGANIZATION', 400);
+        }
+      } else {
+        membership = await prisma.membership.create({
+          data: {
+            userId: user.id,
+            organizationId: invitation.organizationId,
+            role: invitation.role,
+          },
+        });
+      }
+    } else {
+      if (!name || !password) {
+        throw new AppError('Name and password are required to accept invitation and create account.', 'VALIDATION_ERROR', 400);
+      }
+      const passwordHash = await hashPassword(password);
+      user = await prisma.user.create({
+        data: {
+          name,
+          email: normalizedEmail,
+          passwordHash,
+        },
+      });
+
+      membership = await prisma.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: invitation.organizationId,
+          role: invitation.role,
+        },
+      });
+    }
+
+    // Mark invitation as ACCEPTED
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { status: 'ACCEPTED' },
+    });
+
+    // Update usage counters
+    const totalMembers = await prisma.membership.count({ where: { organizationId: invitation.organizationId } });
+    await prisma.usageCounter.update({
+      where: { organizationId: invitation.organizationId },
+      data: { seatsUsed: totalMembers },
+    }).catch(() => {});
+
+    // Create audit log
+    await createAuditLog({
+      organizationId: invitation.organizationId,
+      actorId: user.id,
+      action: 'MEMBER_ACCEPTED_INVITATION',
+      targetType: 'Membership',
+      targetId: membership.id,
+      metadata: { email: user.email, role: membership.role },
+    });
+
+    // Generate tokens so user is immediately logged in
+    const accessToken = signAccessToken({
+      userId: user.id,
+      email: user.email,
+      organizationId: invitation.organizationId,
+      role: membership.role,
+    });
+
+    const refreshToken = signRefreshToken({ userId: user.id });
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    res.status(200).json({
+      message: 'Invitation accepted successfully. Welcome to the organization!',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      organization: {
+        id: invitation.organizationId,
+        name: invitation.organization?.name || 'FlowSuite Workspace',
+        role: membership.role,
+      },
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
     });
   } catch (error) {
     next(error);

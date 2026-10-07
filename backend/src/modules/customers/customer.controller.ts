@@ -7,6 +7,8 @@ export async function listCustomers(req: Request, res: Response, next: NextFunct
   try {
     const { organizationId } = req.tenant!;
     const { search, projectId } = req.query as { search?: string; projectId?: string };
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || req.query.limit as string || '20', 10)));
 
     const where: any = { organizationId };
 
@@ -22,6 +24,8 @@ export async function listCustomers(req: Request, res: Response, next: NextFunct
       ];
     }
 
+    const total = await prisma.customer.count({ where });
+
     const customers = await prisma.customer.findMany({
       where,
       include: {
@@ -30,9 +34,20 @@ export async function listCustomers(req: Request, res: Response, next: NextFunct
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    res.status(200).json({ customers });
+    res.status(200).json({
+      data: customers,
+      customers,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize) || 1,
+      },
+    });
   } catch (error) {
     next(error);
   }

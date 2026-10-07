@@ -49,6 +49,7 @@ model User {
   refreshTokens        RefreshToken[]
   assignedTasks        Task[]         @relation("TaskAssignee")
   auditLogs            AuditLog[]     @relation("AuditActor")
+  sentInvitations      Invitation[]   @relation("UserInvited")
 
   @@index([email])
 }
@@ -67,6 +68,7 @@ model Organization {
   customers    Customer[]
   usageCounter UsageCounter?
   auditLogs    AuditLog[]
+  invitations  Invitation[]
 
   @@index([status])
 }
@@ -219,4 +221,23 @@ model RefreshToken {
 
   @@index([token])
   @@index([userId])
+}
+
+model Invitation {
+  id             String       @id @default(uuid())
+  organizationId String
+  email          String
+  role           Role         @default(MEMBER)
+  token          String       @unique
+  expiresAt      DateTime
+  status         String       @default("PENDING") // PENDING, ACCEPTED, EXPIRED, REVOKED
+  invitedById    String?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User?        @relation("UserInvited", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([token])
+  @@index([email])
 }

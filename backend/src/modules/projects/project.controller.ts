@@ -9,10 +9,12 @@ export async function listProjects(req: Request, res: Response, next: NextFuncti
     const { organizationId, role } = req.tenant!;
     const userId = req.user!.id;
     const { status, search } = req.query as { status?: string; search?: string };
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || req.query.limit as string || '20', 10)));
 
     const where: any = { organizationId };
 
-    if (status) {
+    if (status && status !== 'ALL') {
       where.status = status;
     }
 
@@ -30,6 +32,8 @@ export async function listProjects(req: Request, res: Response, next: NextFuncti
       where.id = { in: assignedProjectIds };
     }
 
+    const total = await prisma.project.count({ where });
+
     const projects = await prisma.project.findMany({
       where,
       include: {
@@ -41,6 +45,8 @@ export async function listProjects(req: Request, res: Response, next: NextFuncti
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     const mapped = projects.map(p => ({
@@ -55,7 +61,16 @@ export async function listProjects(req: Request, res: Response, next: NextFuncti
       updatedAt: p.updatedAt,
     }));
 
-    res.status(200).json({ projects: mapped });
+    res.status(200).json({
+      data: mapped,
+      projects: mapped,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize) || 1,
+      },
+    });
   } catch (error) {
     next(error);
   }

@@ -129,6 +129,46 @@ export const swaggerDocument = {
         },
       },
     },
+    '/auth/invitations/{token}': {
+      get: {
+        summary: 'Inspect Public Invitation Details',
+        security: [],
+        parameters: [
+          { name: 'token', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Invitation details and organization name' },
+          '400': { description: 'Invitation expired or already accepted' },
+          '404': { description: 'Invitation not found' },
+        },
+      },
+    },
+    '/auth/accept-invitation': {
+      post: {
+        summary: 'Accept Workspace Invitation',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token', 'name', 'password'],
+                properties: {
+                  token: { type: 'string' },
+                  name: { type: 'string', example: 'Alex Member' },
+                  password: { type: 'string', example: 'StrongPassword123!' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Invitation accepted and logged into organization' },
+          '400': { description: 'Invalid token, expired, or seat limit exceeded' },
+        },
+      },
+    },
     '/organizations/current': {
       get: {
         summary: 'Get Current Organization Details',
@@ -146,9 +186,35 @@ export const swaggerDocument = {
     },
     '/members': {
       get: {
-        summary: 'List Organization Members',
+        summary: 'List Organization Members (Paginated)',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer' } },
+        ],
         responses: {
-          '200': { description: 'Members list' },
+          '200': { description: 'Members list with pagination' },
+        },
+      },
+    },
+    '/members/invitations': {
+      get: {
+        summary: 'List Pending Workspace Invitations (OWNER/ADMIN only)',
+        responses: {
+          '200': { description: 'List of pending invitations' },
+          '403': { description: 'Forbidden for MANAGER and MEMBER' },
+        },
+      },
+    },
+    '/members/invitations/{id}': {
+      delete: {
+        summary: 'Revoke Pending Workspace Invitation (OWNER/ADMIN only)',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Invitation revoked' },
+          '403': { description: 'Forbidden' },
+          '404': { description: 'Invitation not found' },
         },
       },
     },
@@ -156,7 +222,7 @@ export const swaggerDocument = {
       post: {
         summary: 'Invite Team Member (OWNER/ADMIN, enforces SEAT_LIMIT)',
         responses: {
-          '201': { description: 'Member invited' },
+          '201': { description: 'Member invited with secure token and expiration' },
           '403': { description: 'Seat limit reached or forbidden' },
         },
       },
@@ -171,10 +237,16 @@ export const swaggerDocument = {
     },
     '/projects': {
       get: {
-        summary: 'List Projects (Role-scoped)',
+        summary: 'List Projects (Role-scoped, Paginated)',
         description: 'OWNER/ADMIN/MANAGER see all org projects; MEMBER sees only projects they are assigned to.',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer' } },
+          { name: 'status', in: 'query', schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
         responses: {
-          '200': { description: 'List of projects' },
+          '200': { description: 'List of projects with pagination' },
         },
       },
       post: {
@@ -187,10 +259,16 @@ export const swaggerDocument = {
     },
     '/tasks': {
       get: {
-        summary: 'List Tasks (Role-scoped)',
+        summary: 'List Tasks (Role-scoped, Paginated)',
         description: 'OWNER/ADMIN/MANAGER see all tasks; MEMBER sees only assigned tasks.',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer' } },
+          { name: 'projectId', in: 'query', schema: { type: 'string' } },
+          { name: 'status', in: 'query', schema: { type: 'string' } },
+        ],
         responses: {
-          '200': { description: 'List of tasks' },
+          '200': { description: 'List of tasks with pagination' },
         },
       },
       post: {
@@ -202,9 +280,15 @@ export const swaggerDocument = {
     },
     '/customers': {
       get: {
-        summary: 'List Customers (OWNER/ADMIN/MANAGER)',
+        summary: 'List Customers (OWNER/ADMIN/MANAGER, Paginated)',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'projectId', in: 'query', schema: { type: 'string' } },
+        ],
         responses: {
-          '200': { description: 'Customers list' },
+          '200': { description: 'Customers list with pagination' },
         },
       },
       post: {
@@ -231,11 +315,21 @@ export const swaggerDocument = {
         },
       },
     },
+    '/billing/invoices': {
+      get: {
+        summary: 'Get Invoices & Billing History (OWNER only)',
+        responses: {
+          '200': { description: 'List of historical invoices' },
+          '403': { description: 'Forbidden for non-OWNER roles' },
+        },
+      },
+    },
     '/billing/checkout': {
       post: {
         summary: 'Create Stripe Checkout Session (OWNER only)',
         responses: {
           '200': { description: 'Checkout URL returned' },
+          '403': { description: 'Forbidden for non-OWNER roles' },
         },
       },
     },
@@ -244,6 +338,7 @@ export const swaggerDocument = {
         summary: 'Simulate Plan Upgrade/Downgrade (OWNER only)',
         responses: {
           '200': { description: 'Plan updated with new entitlements' },
+          '403': { description: 'Forbidden for non-OWNER roles' },
         },
       },
     },
@@ -258,9 +353,10 @@ export const swaggerDocument = {
     },
     '/audit-logs': {
       get: {
-        summary: 'List Immutable Audit Logs (OWNER/ADMIN only)',
+        summary: 'List Immutable Audit Logs (OWNER/ADMIN only, Paginated)',
         parameters: [
           { name: 'page', in: 'query', schema: { type: 'integer' } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer' } },
           { name: 'limit', in: 'query', schema: { type: 'integer' } },
           { name: 'action', in: 'query', schema: { type: 'string' } },
         ],

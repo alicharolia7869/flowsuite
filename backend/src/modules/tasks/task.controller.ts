@@ -12,17 +12,21 @@ export async function listTasks(req: Request, res: Response, next: NextFunction)
       status?: string;
       assigneeId?: string;
     };
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || req.query.limit as string || '20', 10)));
 
     const where: any = { organizationId };
 
     if (projectId) where.projectId = projectId;
-    if (status) where.status = status;
+    if (status && status !== 'ALL') where.status = status;
     if (assigneeId) where.assigneeId = assigneeId;
 
     // Role-based visibility: MEMBER can only see tasks assigned to them
     if (role === 'MEMBER') {
       where.assigneeId = userId;
     }
+
+    const total = await prisma.task.count({ where });
 
     const tasks = await prisma.task.findMany({
       where,
@@ -35,9 +39,20 @@ export async function listTasks(req: Request, res: Response, next: NextFunction)
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    res.status(200).json({ tasks });
+    res.status(200).json({
+      data: tasks,
+      tasks,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize) || 1,
+      },
+    });
   } catch (error) {
     next(error);
   }

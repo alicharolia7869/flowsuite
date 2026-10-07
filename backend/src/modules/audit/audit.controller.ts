@@ -5,7 +5,7 @@ export async function listAuditLogs(req: Request, res: Response, next: NextFunct
   try {
     const { organizationId } = req.tenant!;
     const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || '20', 10)));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string || req.query.limit as string || '20', 10)));
     const action = req.query.action as string | undefined;
     const sort = (req.query.sort as string)?.toLowerCase() === 'asc' ? 'asc' : 'desc';
 
@@ -44,11 +44,13 @@ export async function listAuditLogs(req: Request, res: Response, next: NextFunct
     }));
 
     res.status(200).json({
+      data: parsedLogs,
       logs: parsedLogs,
       pagination: {
         total,
         page,
         limit,
+        pageSize: limit,
         totalPages: Math.ceil(total / limit) || 1,
       },
     });

@@ -4,6 +4,8 @@ import {
   inviteMember,
   updateMemberRole,
   removeMember,
+  listInvitations,
+  revokeInvitation,
 } from './member.controller';
 import { inviteMemberSchema, updateMemberRoleSchema } from './member.schema';
 import { authenticate } from '../../middleware/auth';
@@ -19,6 +21,8 @@ router.use(requireTenantContext);
 router.use(trackApiUsage);
 
 router.get('/', listMembers);
+router.get('/invitations', requireRole(['OWNER', 'ADMIN']), listInvitations);
+router.delete('/invitations/:id', requireRole(['OWNER', 'ADMIN']), revokeInvitation);
 router.post('/invite', requireRole(['OWNER', 'ADMIN']), validate(inviteMemberSchema), inviteMember);
 router.patch('/:id/role', requireRole(['OWNER']), validate(updateMemberRoleSchema), updateMemberRole);
 router.delete('/:id', requireRole(['OWNER']), removeMember);
