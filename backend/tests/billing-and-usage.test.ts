@@ -100,7 +100,12 @@ describe('Billing, Usage Dashboard, and Audit Logs Tests', () => {
     expect(res.body.seats.limit).toBeGreaterThan(0);
     expect(res.body.projects).toBeDefined();
     expect(res.body.apiRequests).toBeDefined();
+    expect(typeof res.body.apiRequests.used).toBe('number');
+    expect(Number.isNaN(res.body.apiRequests.used)).toBe(false);
+    expect(Number.isNaN(res.body.apiRequests.percentage)).toBe(false);
     expect(res.body.chartData.length).toBeGreaterThan(0);
+    expect(typeof res.body.chartData[0].requests).toBe('number');
+    expect(Number.isNaN(res.body.chartData[0].requests)).toBe(false);
   });
 
   it('GET /api/v1/audit-logs allows OWNER and ADMIN access with pagination', async () => {

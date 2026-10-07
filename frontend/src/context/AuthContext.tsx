@@ -112,8 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (target) {
       localStorage.setItem('flowsuite_active_org_id', target.id);
       setCurrentOrg(target);
-      // Trigger a light reload or page re-query
-      window.location.reload();
     }
   };
 

@@ -47,26 +47,48 @@ class MemoryTable<T extends { id: string; [key: string]: any }> {
     return this.applyInclude(newItem, args.include);
   }
 
+  private applyDataUpdates(current: any, data: any): any {
+    const updated = { ...current };
+    for (const key of Object.keys(data)) {
+      const val = data[key];
+      if (val !== null && typeof val === 'object' && !(val instanceof Date) && !Array.isArray(val)) {
+        if ('increment' in val && typeof val.increment === 'number') {
+          updated[key] = (Number(current[key]) || 0) + val.increment;
+        } else if ('decrement' in val && typeof val.decrement === 'number') {
+          updated[key] = (Number(current[key]) || 0) - val.decrement;
+        } else if ('multiply' in val && typeof val.multiply === 'number') {
+          updated[key] = (Number(current[key]) || 0) * val.multiply;
+        } else if ('divide' in val && typeof val.divide === 'number') {
+          updated[key] = (Number(current[key]) || 0) / val.divide;
+        } else if ('set' in val) {
+          updated[key] = val.set;
+        } else {
+          updated[key] = val;
+        }
+      } else {
+        updated[key] = val;
+      }
+    }
+    updated.updatedAt = new Date();
+    return updated;
+  }
+
   async update(args: { where: any; data: any; include?: any }): Promise<any> {
     const index = this.items.findIndex(i => this.matchWhere(i, args.where));
     if (index === -1) {
       throw new Error(`Record to update not found.`);
     }
     const current = this.items[index];
-    const updated = {
-      ...current,
-      ...args.data,
-      updatedAt: new Date(),
-    };
+    const updated = this.applyDataUpdates(current, args.data);
     this.items[index] = updated;
     return this.applyInclude(updated, args.include);
   }
 
   async updateMany(args: { where: any; data: any }): Promise<{ count: number }> {
     let count = 0;
-    for (const item of this.items) {
-      if (this.matchWhere(item, args.where)) {
-        Object.assign(item, args.data, { updatedAt: new Date() });
+    for (let i = 0; i < this.items.length; i++) {
+      if (this.matchWhere(this.items[i], args.where)) {
+        this.items[i] = this.applyDataUpdates(this.items[i], args.data);
         count++;
       }
     }
@@ -132,10 +154,26 @@ class MemoryTable<T extends { id: string; [key: string]: any }> {
           const target = String(condition.contains).toLowerCase();
           if (!strVal.includes(target)) return false;
         }
-        if ('gte' in condition && !(val >= condition.gte)) return false;
-        if ('lte' in condition && !(val <= condition.lte)) return false;
-        if ('gt' in condition && !(val > condition.gt)) return false;
-        if ('lt' in condition && !(val < condition.lt)) return false;
+        if ('gte' in condition) {
+          const itemVal = val instanceof Date ? val.getTime() : val;
+          const condVal = condition.gte instanceof Date ? condition.gte.getTime() : condition.gte;
+          if (!(itemVal >= condVal)) return false;
+        }
+        if ('lte' in condition) {
+          const itemVal = val instanceof Date ? val.getTime() : val;
+          const condVal = condition.lte instanceof Date ? condition.lte.getTime() : condition.lte;
+          if (!(itemVal <= condVal)) return false;
+        }
+        if ('gt' in condition) {
+          const itemVal = val instanceof Date ? val.getTime() : val;
+          const condVal = condition.gt instanceof Date ? condition.gt.getTime() : condition.gt;
+          if (!(itemVal > condVal)) return false;
+        }
+        if ('lt' in condition) {
+          const itemVal = val instanceof Date ? val.getTime() : val;
+          const condVal = condition.lt instanceof Date ? condition.lt.getTime() : condition.lt;
+          if (!(itemVal < condVal)) return false;
+        }
       } else {
         if (val !== condition) return false;
       }
@@ -208,17 +246,40 @@ class MemoryTable<T extends { id: string; [key: string]: any }> {
     if (include.projects && item.id) {
       clone.projects = memoryDb.project.items.filter(p => p.organizationId === item.id);
     }
+    if (include.project && item.projectId) {
+      clone.project = memoryDb.project.items.find(p => p.id === item.projectId) || null;
+    }
     if (include.tasks && item.id) {
-      clone.tasks = memoryDb.task.items.filter(t => t.organizationId === item.id);
+      const isProject = item.id.startsWith('proj_') || ('status' in item && 'name' in item && !('email' in item));
+      const rawTasks = isProject
+        ? memoryDb.task.items.filter(t => t.projectId === item.id)
+        : memoryDb.task.items.filter(t => t.organizationId === item.id);
+      clone.tasks = rawTasks.map(t => {
+        const tClone = { ...t };
+        if (typeof include.tasks === 'object' && include.tasks.include) {
+          return this.applyInclude(tClone, include.tasks.include);
+        }
+        return tClone;
+      });
     }
     if (include.assignee && item.assigneeId) {
-      clone.assignee = memoryDb.user.items.find(u => u.id === item.assigneeId);
+      clone.assignee = memoryDb.user.items.find(u => u.id === item.assigneeId) || null;
     }
     if (include.actor && item.actorId) {
-      clone.actor = memoryDb.user.items.find(u => u.id === item.actorId);
+      clone.actor = memoryDb.user.items.find(u => u.id === item.actorId) || null;
     }
     if (include.customers && item.id) {
-      clone.customers = memoryDb.customer.items.filter(c => c.organizationId === item.id);
+      const isProject = item.id.startsWith('proj_') || ('status' in item && 'name' in item && !('email' in item));
+      const rawCustomers = isProject
+        ? memoryDb.customer.items.filter(c => c.projectId === item.id)
+        : memoryDb.customer.items.filter(c => c.organizationId === item.id);
+      clone.customers = rawCustomers.map(c => {
+        const cClone = { ...c };
+        if (typeof include.customers === 'object' && include.customers.include) {
+          return this.applyInclude(cClone, include.customers.include);
+        }
+        return cClone;
+      });
     }
 
     return clone;

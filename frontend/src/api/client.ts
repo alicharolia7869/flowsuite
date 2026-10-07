@@ -36,6 +36,46 @@ class ApiClient {
     localStorage.removeItem('flowsuite_active_org_id');
   }
 
+  private refreshPromise: Promise<string | null> | null = null;
+
+  private async refreshAccessToken(): Promise<string | null> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.clearTokens();
+      return null;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        const refreshRes = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          this.setTokens(data.tokens.accessToken, data.tokens.refreshToken);
+          return data.tokens.accessToken as string;
+        } else {
+          this.clearTokens();
+          return null;
+        }
+      } catch {
+        this.clearTokens();
+        return null;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = this.getAccessToken();
     const activeOrgId = this.getActiveOrgId();
@@ -60,30 +100,16 @@ class ApiClient {
 
     // Handle token expiration and automatic refresh
     if (res.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
-      const refreshToken = this.getRefreshToken();
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch(`${this.baseUrl}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const data = await refreshRes.json();
-            this.setTokens(data.tokens.accessToken, data.tokens.refreshToken);
-            // Retry original request with new token
-            headers['Authorization'] = `Bearer ${data.tokens.accessToken}`;
-            res = await fetch(`${this.baseUrl}${endpoint}`, {
-              ...options,
-              headers,
-            });
-          } else {
-            this.clearTokens();
-            window.location.href = '/login?expired=true';
-          }
-        } catch {
-          this.clearTokens();
+      const newAccessToken = await this.refreshAccessToken();
+      if (newAccessToken) {
+        headers['Authorization'] = `Bearer ${newAccessToken}`;
+        res = await fetch(`${this.baseUrl}${endpoint}`, {
+          ...options,
+          headers,
+        });
+      } else {
+        this.clearTokens();
+        if (window.location.pathname !== '/login') {
           window.location.href = '/login?expired=true';
         }
       }

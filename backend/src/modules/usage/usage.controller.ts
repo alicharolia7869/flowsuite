@@ -27,14 +27,20 @@ export async function getOrganizationUsage(req: Request, res: Response, next: Ne
     // 2. Fetch dynamic entitlements
     const entitlements = await getOrganizationEntitlements(organizationId);
 
-    const apiRequestsUsed = usageCounter?.apiRequestsUsed || 0;
+    const rawApiRequests = usageCounter?.apiRequestsUsed;
+    const apiRequestsUsed = typeof rawApiRequests === 'number'
+      ? rawApiRequests
+      : typeof rawApiRequests === 'object' && rawApiRequests !== null && 'increment' in rawApiRequests
+        ? Number((rawApiRequests as any).increment) || 0
+        : Number(rawApiRequests) || 0;
+
     const renewalDate = subscription?.renewalDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const seatPercentage = Math.min(100, Math.round((seatsUsed / entitlements.seatLimit) * 100));
+    const seatPercentage = Math.min(100, Math.round((seatsUsed / (entitlements.seatLimit || 1)) * 100));
     const projectPercentage = entitlements.isUnlimitedProjects
       ? 0
-      : Math.min(100, Math.round((projectsUsed / entitlements.projectLimit) * 100));
-    const apiPercentage = Math.min(100, Math.round((apiRequestsUsed / entitlements.apiRequestLimit) * 100));
+      : Math.min(100, Math.round((projectsUsed / (entitlements.projectLimit || 1)) * 100));
+    const apiPercentage = Math.min(100, Math.round((apiRequestsUsed / (entitlements.apiRequestLimit || 1)) * 100));
 
     // Generate monthly trend points for charts based on real counts
     const chartData = [

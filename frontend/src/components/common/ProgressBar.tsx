@@ -15,7 +15,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   isUnlimited = false,
   unit = '',
 }) => {
-  const percentage = isUnlimited ? 0 : Math.min(100, Math.round((value / max) * 100));
+  const safeValue = typeof value === 'number' && !isNaN(value) ? value : Number(value) || 0;
+  const safeMax = typeof max === 'number' && !isNaN(max) && max > 0 ? max : 1;
+  const percentage = isUnlimited ? 0 : Math.min(100, Math.max(0, Math.round((safeValue / safeMax) * 100)));
 
   const getColor = () => {
     if (isUnlimited) return 'bg-sky-500';
@@ -30,7 +32,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="text-slate-400 font-medium">{label}</span>
           <span className="text-slate-200 font-semibold font-mono">
-            {value.toLocaleString()} {unit} / {isUnlimited ? 'Unlimited' : `${max.toLocaleString()} ${unit}`}
+            {safeValue.toLocaleString()} {unit} / {isUnlimited ? 'Unlimited' : `${safeMax.toLocaleString()} ${unit}`}
             {!isUnlimited && ` (${percentage}%)`}
           </span>
         </div>

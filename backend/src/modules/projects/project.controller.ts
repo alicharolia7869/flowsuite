@@ -48,9 +48,9 @@ export async function listProjects(req: Request, res: Response, next: NextFuncti
       name: p.name,
       description: p.description,
       status: p.status,
-      totalTasks: p.tasks?.length || 0,
-      completedTasks: p.tasks?.filter((t: any) => t.status === 'DONE').length || 0,
-      customerCount: p.customers?.length || 0,
+      totalTasks: Array.isArray(p.tasks) ? p.tasks.length : 0,
+      completedTasks: Array.isArray(p.tasks) ? p.tasks.filter((t: any) => t?.status === 'DONE').length : 0,
+      customerCount: Array.isArray(p.customers) ? p.customers.length : 0,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
     }));

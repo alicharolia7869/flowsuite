@@ -393,13 +393,15 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         email: user.email,
         createdAt: user.createdAt,
       },
-      organizations: user.memberships.map(m => ({
-        id: m.organization.id,
-        name: m.organization.name,
-        role: m.role,
-        plan: m.organization.subscription?.plan?.name || 'STARTER',
-        joinedAt: m.createdAt,
-      })),
+      organizations: (user.memberships || [])
+        .filter(m => m && m.organization)
+        .map(m => ({
+          id: m.organization.id,
+          name: m.organization.name,
+          role: m.role,
+          plan: m.organization.subscription?.plan?.name || 'STARTER',
+          joinedAt: m.createdAt,
+        })),
     });
   } catch (error) {
     next(error);

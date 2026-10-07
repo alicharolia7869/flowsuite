@@ -144,7 +144,7 @@ export const UsageDashboardPage: React.FC = () => {
 
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-white font-mono">
-              {(apiRequests?.used || 0).toLocaleString()}
+              {(typeof apiRequests?.used === 'number' ? apiRequests.used : Number(apiRequests?.used) || 0).toLocaleString()}
             </span>
             <span className="text-sm text-slate-400 font-mono">
               / {(apiRequests?.limit || 1000).toLocaleString()}
@@ -152,7 +152,7 @@ export const UsageDashboardPage: React.FC = () => {
           </div>
 
           <ProgressBar
-            value={apiRequests?.used || 0}
+            value={typeof apiRequests?.used === 'number' ? apiRequests.used : Number(apiRequests?.used) || 0}
             max={apiRequests?.limit || 1000}
           />
 

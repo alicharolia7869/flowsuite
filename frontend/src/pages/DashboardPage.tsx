@@ -5,13 +5,12 @@ import {
   FolderKanban,
   CheckSquare,
   Users,
-  Building2,
   ArrowUpRight,
   Plus,
-  Clock,
   CheckCircle2,
   AlertCircle,
   TrendingUp,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -21,36 +20,88 @@ import { ProgressBar } from '../components/common/ProgressBar';
 export const DashboardPage: React.FC = () => {
   const { currentOrg, hasRole, user } = useAuth();
 
-  const { data: usageData, isLoading: usageLoading } = useQuery({
+  const {
+    data: usageData,
+    isLoading: usageLoading,
+    isError: usageError,
+    refetch: refetchUsage,
+  } = useQuery({
     queryKey: ['usage', currentOrg?.id],
     queryFn: () => api.get<any>('/usage'),
+    enabled: !!currentOrg?.id,
   });
 
-  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+  const {
+    data: projectsData,
+    isLoading: projectsLoading,
+    isError: projectsError,
+    refetch: refetchProjects,
+  } = useQuery({
     queryKey: ['projects', currentOrg?.id],
     queryFn: () => api.get<{ projects: any[] }>('/projects'),
+    enabled: !!currentOrg?.id,
   });
 
-  const { data: tasksData, isLoading: tasksLoading } = useQuery({
+  const {
+    data: tasksData,
+    isLoading: tasksLoading,
+    isError: tasksError,
+    refetch: refetchTasks,
+  } = useQuery({
     queryKey: ['tasks', currentOrg?.id],
     queryFn: () => api.get<{ tasks: any[] }>('/tasks'),
+    enabled: !!currentOrg?.id,
   });
 
-  const projects = projectsData?.projects || [];
-  const tasks = tasksData?.tasks || [];
-  const myTasks = tasks.filter(t => t.assigneeId === user?.id || currentOrg?.role === 'MEMBER');
+  const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
+  const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : [];
+  const myTasks = tasks.filter(t => t && (t.assigneeId === user?.id || currentOrg?.role === 'MEMBER'));
+
+  const rawApiUsed = usageData?.apiRequests?.used;
+  const apiRequestsUsed = typeof rawApiUsed === 'number'
+    ? rawApiUsed
+    : typeof rawApiUsed === 'object' && rawApiUsed !== null && 'increment' in rawApiUsed
+      ? Number(rawApiUsed.increment) || 0
+      : Number(rawApiUsed) || 0;
+
+  const apiRequestsLimit = typeof usageData?.apiRequests?.limit === 'number'
+    ? usageData.apiRequests.limit
+    : 1000;
+
+  const hasAnyError = usageError || projectsError || tasksError;
+  const handleRetryAll = () => {
+    refetchUsage();
+    refetchProjects();
+    refetchTasks();
+  };
 
   return (
     <div className="space-y-6">
+      {/* Error Banner if any dashboard request failed */}
+      {hasAnyError && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
+            <span>Some workspace metrics could not be loaded. Please verify your network connection.</span>
+          </div>
+          <button
+            onClick={handleRetryAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-200 bg-rose-500/20 hover:bg-rose-500/30 rounded-xl transition-colors shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      )}
+
       {/* Top Welcome & Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-800/80">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            Welcome back, {user?.name?.split(' ')[0]} 👋
+            Welcome back, {user?.name ? user.name.split(' ')[0] : 'there'} 👋
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Workspace: <span className="text-slate-200 font-semibold">{currentOrg?.name}</span> • Role:{' '}
-            <span className="text-brand-400 font-semibold">{currentOrg?.role}</span>
+            Workspace: <span className="text-slate-200 font-semibold">{currentOrg?.name || 'Loading...'}</span> • Role:{' '}
+            <span className="text-brand-400 font-semibold">{currentOrg?.role || 'MEMBER'}</span>
           </p>
         </div>
 
@@ -96,8 +147,8 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="mt-3">
             <ProgressBar
-              value={usageData?.projects?.used || projects.length}
-              max={usageData?.projects?.limit || 20}
+              value={usageData?.projects?.used ?? projects.length}
+              max={usageData?.projects?.limit ?? 20}
               isUnlimited={usageData?.projects?.isUnlimited}
             />
           </div>
@@ -135,14 +186,14 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-white font-mono">
-              {usageLoading ? '...' : usageData?.seats?.used || 1}
+              {usageLoading ? '...' : (usageData?.seats?.used ?? 1)}
             </span>
-            <span className="text-xs text-slate-400">/ {usageData?.seats?.limit || 3} allowed</span>
+            <span className="text-xs text-slate-400">/ {usageData?.seats?.limit ?? 3} allowed</span>
           </div>
           <div className="mt-3">
             <ProgressBar
-              value={usageData?.seats?.used || 1}
-              max={usageData?.seats?.limit || 3}
+              value={usageData?.seats?.used ?? 1}
+              max={usageData?.seats?.limit ?? 3}
             />
           </div>
         </div>
@@ -157,16 +208,16 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-white font-mono">
-              {usageLoading ? '...' : (usageData?.apiRequests?.used || 0).toLocaleString()}
+              {usageLoading ? '...' : apiRequestsUsed.toLocaleString()}
             </span>
             <span className="text-xs text-slate-400">
-              / {(usageData?.apiRequests?.limit || 1000).toLocaleString()}
+              / {apiRequestsLimit.toLocaleString()}
             </span>
           </div>
           <div className="mt-3">
             <ProgressBar
-              value={usageData?.apiRequests?.used || 0}
-              max={usageData?.apiRequests?.limit || 1000}
+              value={apiRequestsUsed}
+              max={apiRequestsLimit}
             />
           </div>
         </div>
@@ -187,8 +238,17 @@ export const DashboardPage: React.FC = () => {
               </Link>
             </div>
 
-            {projects.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">No projects in this organization yet.</p>
+            {projectsLoading ? (
+              <div className="space-y-3 py-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 rounded-xl bg-slate-900/40 border border-slate-800/60 animate-pulse" />
+                ))}
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="py-8 text-center">
+                <FolderKanban className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No projects in this organization yet.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {projects.slice(0, 4).map((p) => (
@@ -239,8 +299,17 @@ export const DashboardPage: React.FC = () => {
               </Link>
             </div>
 
-            {myTasks.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">No tasks assigned to you.</p>
+            {tasksLoading ? (
+              <div className="space-y-2.5 py-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 rounded-xl bg-slate-900/40 border border-slate-800/60 animate-pulse" />
+                ))}
+              </div>
+            ) : myTasks.length === 0 ? (
+              <div className="py-8 text-center">
+                <CheckSquare className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No tasks assigned to you.</p>
+              </div>
             ) : (
               <div className="space-y-2.5">
                 {myTasks.slice(0, 5).map((t) => (
