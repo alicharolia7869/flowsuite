@@ -8,6 +8,7 @@ describe('Server-Side RBAC Enforcement Tests', () => {
   let adminToken: string;
   let managerToken: string;
   let memberToken: string;
+  let orgId: string;
   let assignedTaskId: string;
   let unassignedTaskId: string;
 
@@ -16,6 +17,7 @@ describe('Server-Side RBAC Enforcement Tests', () => {
 
     const ownerRes = await request(app).post('/api/v1/auth/login').send({ email: 'owner@acme.com', password: 'Password123!' });
     ownerToken = ownerRes.body.tokens.accessToken;
+    orgId = ownerRes.body.organization.id;
 
     const adminRes = await request(app).post('/api/v1/auth/login').send({ email: 'admin@acme.com', password: 'Password123!' });
     adminToken = adminRes.body.tokens.accessToken;
@@ -32,6 +34,16 @@ describe('Server-Side RBAC Enforcement Tests', () => {
     unassignedTaskId = 'task_003';
   });
 
+  it('OWNER can fetch current organization settings', async () => {
+    const res = await request(app)
+      .get('/api/v1/organizations/current')
+      .set('Authorization', `Bearer ${ownerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.organization.name).toBe('Acme Corp');
+    expect(res.body.organization.id).toBe(orgId);
+  });
+
   it('OWNER can update organization settings', async () => {
     const res = await request(app)
       .patch('/api/v1/organizations/current')
@@ -40,6 +52,23 @@ describe('Server-Side RBAC Enforcement Tests', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.organization.name).toBe('Acme Global Enterprise');
+  });
+
+  it('Validates organization name length on update', async () => {
+    const res = await request(app)
+      .patch('/api/v1/organizations/current')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'A' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('Unauthenticated requests to settings endpoints return 401', async () => {
+    const res = await request(app)
+      .get('/api/v1/organizations/current');
+
+    expect(res.status).toBe(401);
   });
 
   it('ADMIN cannot update organization settings', async () => {

@@ -11,11 +11,18 @@ interface LoginFormInputs {
 }
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { user, isLoading: authLoading, login } = useAuth();
   const { error: toastError, success: toastSuccess } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (!authLoading && user) {
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [user, authLoading, navigate, location.state]);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormInputs>({
     defaultValues: {
@@ -29,7 +36,8 @@ export const LoginPage: React.FC = () => {
     try {
       await login(data.email, data.password);
       toastSuccess('Signed in successfully.');
-      navigate('/dashboard');
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
     } catch (err: any) {
       toastError(err.message || 'Invalid email or password.');
     } finally {

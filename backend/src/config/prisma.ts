@@ -194,7 +194,10 @@ class MemoryTable<T extends { id: string; [key: string]: any }> {
       clone.memberships = mems.map(m => {
         const mClone = { ...m };
         if (include.memberships.include?.organization) {
-          mClone.organization = memoryDb.organization.items.find(o => o.id === m.organizationId);
+          const org = memoryDb.organization.items.find(o => o.id === m.organizationId);
+          mClone.organization = org
+            ? this.applyInclude(org, include.memberships.include.organization.include)
+            : org;
         }
         if (include.memberships.include?.user) {
           mClone.user = memoryDb.user.items.find(u => u.id === m.userId);

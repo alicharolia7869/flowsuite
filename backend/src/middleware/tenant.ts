@@ -8,7 +8,14 @@ export async function requireTenantContext(req: Request, _res: Response, next: N
       throw new AppError('Authentication required before establishing tenant context.', 'UNAUTHORIZED', 401);
     }
 
-    const headerOrgId = req.headers['x-organization-id'] as string | undefined;
+    const rawHeaderOrgId = req.headers['x-organization-id'];
+    const headerOrgId =
+      typeof rawHeaderOrgId === 'string' &&
+      rawHeaderOrgId.trim() !== '' &&
+      rawHeaderOrgId !== 'undefined' &&
+      rawHeaderOrgId !== 'null'
+        ? rawHeaderOrgId.trim()
+        : undefined;
 
     let membership;
     if (headerOrgId) {

@@ -370,7 +370,13 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
       include: {
         memberships: {
           include: {
-            organization: true,
+            organization: {
+              include: {
+                subscription: {
+                  include: { plan: true },
+                },
+              },
+            },
           },
         },
       },
@@ -391,6 +397,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         id: m.organization.id,
         name: m.organization.name,
         role: m.role,
+        plan: m.organization.subscription?.plan?.name || 'STARTER',
         joinedAt: m.createdAt,
       })),
     });

@@ -16,7 +16,11 @@ class ApiClient {
   }
 
   private getActiveOrgId(): string | null {
-    return localStorage.getItem('flowsuite_active_org_id');
+    const val = localStorage.getItem('flowsuite_active_org_id');
+    if (!val || val === 'undefined' || val === 'null' || val.trim() === '') {
+      return null;
+    }
+    return val;
   }
 
   private setTokens(accessToken: string, refreshToken?: string) {
