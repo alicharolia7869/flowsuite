@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 
 import { env } from './config/env';
+import { getDatabaseStatus } from './config/prisma';
 import { errorHandler } from './middleware/errorHandler';
 import { swaggerDocument } from './docs/swagger';
 
@@ -64,10 +65,15 @@ app.use(cookieParser());
 
 // Health Check
 app.get('/api/v1/health', (_req: Request, res: Response) => {
+  const dbStatus = getDatabaseStatus();
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'FlowSuite API',
+    database: {
+      provider: dbStatus.provider,
+      persistent: dbStatus.persistent,
+    },
   });
 });
 

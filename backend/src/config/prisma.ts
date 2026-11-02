@@ -752,10 +752,31 @@ export const memoryDb = new MemoryDatabase();
 const seedPromise = memoryDb.seed();
 
 const isLocalhostDb = !env.DATABASE_URL || env.DATABASE_URL.includes('localhost') || env.DATABASE_URL.includes('127.0.0.1');
-const shouldUseMemoryDb = process.env.FORCE_MEMORY_DB || (Boolean(process.env.VERCEL) && isLocalhostDb);
+const shouldUseMemoryDb = process.env.FORCE_MEMORY_DB === 'true' || (Boolean(process.env.VERCEL) && isLocalhostDb);
 
 // Attempt PostgreSQL client connection, or fallback to memoryDb
 let activeClient: any = memoryDb;
+let connectPromise: Promise<void> | null = null;
+
+async function ensureBasePlans(client: any) {
+  try {
+    const count = await client.plan.count();
+    if (count === 0) {
+      console.log('PostgreSQL database plans table is empty. Initializing base plans (FREE, STARTER, PROFESSIONAL)...');
+      await client.plan.createMany({
+        data: [
+          { name: 'FREE', price: 0, seatLimit: 3, projectLimit: 2, apiRequestLimit: 1000, advancedAnalytics: false },
+          { name: 'STARTER', price: 499, seatLimit: 10, projectLimit: 20, apiRequestLimit: 10000, advancedAnalytics: false },
+          { name: 'PROFESSIONAL', price: 999, seatLimit: 50, projectLimit: -1, apiRequestLimit: 100000, advancedAnalytics: true },
+        ],
+        skipDuplicates: true,
+      });
+      console.log('Base plans seeded successfully.');
+    }
+  } catch (err: any) {
+    console.warn('Base plan initialization notice:', err?.message || err);
+  }
+}
 
 if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb && PrismaClientClass) {
   try {
@@ -767,15 +788,17 @@ if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb &&
       },
     });
 
-    // Check if Postgres is actively responsive within 1000ms
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('DB Timeout')), 1000));
-    Promise.race([realPrisma.$connect(), timeout])
-      .then(() => {
-        console.log('Connected to PostgreSQL database successfully.');
+    // Connect with a 10s connection timeout for managed remote PostgreSQL instances
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('PostgreSQL connection timeout (10s)')), 10000));
+    connectPromise = Promise.race([realPrisma.$connect(), timeout])
+      .then(async () => {
+        console.log('Connected to persistent PostgreSQL database successfully.');
         activeClient = realPrisma;
+        await ensureBasePlans(realPrisma);
       })
-      .catch(() => {
-        console.log('PostgreSQL database server not reachable. Initializing high-speed in-memory database store.');
+      .catch((err: any) => {
+        console.warn('PostgreSQL database connection failed:', err?.message || err);
+        console.log('Falling back to high-speed in-memory database store.');
         activeClient = memoryDb;
       });
   } catch {
@@ -783,6 +806,14 @@ if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb &&
   }
 } else {
   activeClient = memoryDb;
+}
+
+export function getDatabaseStatus(): { provider: 'postgresql' | 'memory'; persistent: boolean } {
+  const isPostgres = activeClient !== memoryDb && activeClient !== null && activeClient !== undefined;
+  return {
+    provider: isPostgres ? 'postgresql' : 'memory',
+    persistent: isPostgres,
+  };
 }
 
 // Proxied prisma export allowing dynamic dispatch
@@ -796,16 +827,23 @@ export const prisma: PrismaClient = new Proxy({} as any, {
     const targetTable = client[prop] || (memoryDb as any)[prop];
     if (!targetTable || typeof targetTable !== 'object') return targetTable;
 
-    // Wrap table methods to ensure seeding is completed when using memoryDb
+    // Wrap table methods to ensure connection & seeding is completed
     return new Proxy(targetTable, {
       get(t: any, method) {
         const fn = t[method];
         if (typeof fn !== 'function') return fn;
         return async (...args: any[]) => {
+          if (connectPromise) {
+            try {
+              await connectPromise;
+            } catch {}
+          }
           if (activeClient === memoryDb || !activeClient) {
             await seedPromise;
           }
-          return fn.apply(t, args);
+          const currentTable = activeClient ? (activeClient[prop] || (memoryDb as any)[prop]) : (memoryDb as any)[prop];
+          const targetFn = currentTable ? currentTable[method] : fn;
+          return targetFn.apply(currentTable, args);
         };
       }
     });
