@@ -71,4 +71,18 @@ describe('Plan Limit & Entitlement Engine Enforcement Tests', () => {
     expect(projRes.status).toBe(201);
     expect(projRes.body.project.name).toBe('Batwing Overhaul (Now Allowed)');
   });
+
+  it('STARTER plan: enforces 10 seats, 20 projects, and disables advanced analytics', async () => {
+    const switchRes = await request(app)
+      .post('/api/v1/billing/simulate')
+      .set('Authorization', `Bearer ${wayneToken}`)
+      .send({ planName: 'STARTER' });
+
+    expect(switchRes.status).toBe(200);
+    expect(switchRes.body.entitlements.seatLimit).toBe(10);
+    expect(switchRes.body.entitlements.projectLimit).toBe(20);
+    expect(switchRes.body.entitlements.isUnlimitedProjects).toBe(false);
+    expect(switchRes.body.entitlements.apiRequestLimit).toBe(10000);
+    expect(switchRes.body.entitlements.advancedAnalytics).toBe(false);
+  });
 });

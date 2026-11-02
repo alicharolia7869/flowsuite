@@ -133,4 +133,51 @@ describe('Auth API Endpoints', () => {
 
     expect(newLoginRes.status).toBe(200);
   });
+
+  it('should logout and invalidate refresh token', async () => {
+    const loginRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({
+        email: 'owner@acme.com',
+        password: 'NewPassword123!',
+      });
+
+    const refreshToken = loginRes.body.tokens.refreshToken;
+
+    const logoutRes = await request(app)
+      .post('/api/v1/auth/logout')
+      .send({ refreshToken });
+
+    expect(logoutRes.status).toBe(200);
+    expect(logoutRes.body.message).toBe('Logged out successfully.');
+
+    // Verifying that revoked refresh token is rejected
+    const refreshRes = await request(app)
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken });
+
+    expect(refreshRes.status).toBe(401);
+    expect(refreshRes.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should rate limit repeated failed login attempts (429 Too Many Requests)', async () => {
+    const targetEmail = 'brute-force@test.com';
+
+    // 5 failed attempts
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: targetEmail, password: 'WrongPassword' });
+      expect(res.status).toBe(401);
+    }
+
+    // 6th attempt should be blocked by rate limiter
+    const blockedRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: targetEmail, password: 'WrongPassword' });
+
+    expect(blockedRes.status).toBe(429);
+    expect(blockedRes.body.error.code).toBe('TOO_MANY_REQUESTS');
+    expect(blockedRes.body.error.message).toContain('Too many failed login attempts');
+  });
 });

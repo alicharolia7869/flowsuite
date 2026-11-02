@@ -166,4 +166,65 @@ describe('Server-Side RBAC Enforcement Tests', () => {
     expect(res.status).toBe(201);
     expect(res.body.task.title).toBe('Manager Assigned Task');
   });
+
+  // Privilege Escalation Tests
+  it('Privilege Escalation: MANAGER cannot change member roles', async () => {
+    const res = await request(app)
+      .patch('/api/v1/members/mem_4/role')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ role: 'ADMIN' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('Privilege Escalation: MANAGER cannot remove members', async () => {
+    const res = await request(app)
+      .delete('/api/v1/members/mem_4')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('Privilege Escalation: ADMIN cannot initiate billing checkout', async () => {
+    const res = await request(app)
+      .post('/api/v1/billing/checkout')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ planId: 'plan_starter' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('Privilege Escalation: ADMIN cannot view billing invoices', async () => {
+    const res = await request(app)
+      .get('/api/v1/billing/invoices')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('Privilege Escalation: ADMIN cannot delete organization', async () => {
+    const res = await request(app)
+      .delete('/api/v1/organizations/current')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('Privilege Escalation: MEMBER calling ADMIN customer creation is blocked with 403', async () => {
+    const res = await request(app)
+      .post('/api/v1/customers')
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({
+        name: 'Forbidden Customer',
+        email: 'forbidden@client.com',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
 });

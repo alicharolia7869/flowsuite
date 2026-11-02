@@ -1,8 +1,8 @@
 # FlowSuite — Multi-Tenant SaaS Workspace Platform
 
 [![CI/CD](https://github.com/flowsuite/flowsuite/actions/workflows/ci.yml/badge.svg)](https://github.com/flowsuite/flowsuite/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-65%20passed-emerald)](https://github.com/flowsuite/flowsuite)
-[![Coverage](https://img.shields.io/badge/coverage-81.0%25-brightgreen)](https://github.com/flowsuite/flowsuite)
+[![Tests](https://img.shields.io/badge/tests-81%20passed-emerald)](https://github.com/flowsuite/flowsuite)
+[![Coverage](https://img.shields.io/badge/coverage-83.35%25-brightgreen)](https://github.com/flowsuite/flowsuite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **FlowSuite** is an enterprise-grade multi-tenant B2B SaaS workspace platform engineered for teams, project execution, task workflows, customer relationship management, dynamic plan entitlements, and Stripe test billing.
@@ -227,7 +227,7 @@ The test suite validates:
 - **Invitations**: Secure token-based onboarding, expiration checks, single-org rule.
 - **Pagination**: Uniform pagination contract across all list endpoints.
 
-**Result: 65/65 tests passing, 81.02% statement coverage.**
+**Result: 81/81 tests passing, 83.35% statement coverage (exceeds the 70% threshold).**
 
 ---
 

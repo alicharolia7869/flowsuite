@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, ChevronDown, Check, Building, FileCode, Shield } from 'lucide-react';
+import { Menu, ChevronDown, Check, Building, FileCode, Shield, Video } from 'lucide-react';
 import { useAuth, Role } from '../../context/AuthContext';
 import { Badge } from '../common/Badge';
 
@@ -99,6 +99,16 @@ export const Navbar: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
 
       {/* Right Navbar Actions */}
       <div className="flex items-center gap-3">
+        <a
+          href="/walkthrough.html"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1.5 text-xs text-brand-300 hover:text-white bg-brand-500/15 hover:bg-brand-500/25 px-3 py-1.5 rounded-lg border border-brand-500/40 transition-all font-semibold shadow-glow"
+        >
+          <Video className="w-3.5 h-3.5 text-brand-400" />
+          <span className="hidden sm:inline">Guide Video</span>
+        </a>
+
         <a
           href="/api/docs"
           target="_blank"

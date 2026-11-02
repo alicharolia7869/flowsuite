@@ -127,4 +127,78 @@ describe('Strict Tenant Isolation Security Tests', () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
+
+  it('CRITICAL: Organization B user CANNOT delete Organization A project', async () => {
+    const res = await request(app)
+      .delete(`/api/v1/projects/${orgAProject.id}`)
+      .set('Authorization', `Bearer ${tokenOrgB}`);
+
+    expect([403, 404]).toContain(res.status);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('CRITICAL: Organization B user CANNOT modify Organization A task', async () => {
+    const res = await request(app)
+      .patch(`/api/v1/tasks/${orgATask.id}`)
+      .set('Authorization', `Bearer ${tokenOrgB}`)
+      .send({ status: 'DONE' });
+
+    expect([403, 404]).toContain(res.status);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('CRITICAL: Organization B user CANNOT delete Organization A task', async () => {
+    const res = await request(app)
+      .delete(`/api/v1/tasks/${orgATask.id}`)
+      .set('Authorization', `Bearer ${tokenOrgB}`);
+
+    expect([403, 404]).toContain(res.status);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('CRITICAL: Organization B user CANNOT modify Organization A customer', async () => {
+    const res = await request(app)
+      .patch(`/api/v1/customers/${orgACustomer.id}`)
+      .set('Authorization', `Bearer ${tokenOrgB}`)
+      .send({ name: 'Tampered Customer Name' });
+
+    expect([403, 404]).toContain(res.status);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('CRITICAL: Organization B user CANNOT delete Organization A customer', async () => {
+    const res = await request(app)
+      .delete(`/api/v1/customers/${orgACustomer.id}`)
+      .set('Authorization', `Bearer ${tokenOrgB}`);
+
+    expect([403, 404]).toContain(res.status);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('CRITICAL: Organization B user CANNOT read Organization A audit logs', async () => {
+    const res = await request(app)
+      .get('/api/v1/audit-logs')
+      .set('Authorization', `Bearer ${tokenOrgB}`);
+
+    expect(res.status).toBe(200);
+    const orgIdsInLogs = res.body.logs.map((l: any) => l.organizationId).filter(Boolean);
+    expect(orgIdsInLogs).not.toContain(orgAProject.organizationId);
+  });
+
+  it('CRITICAL: Organization B user CANNOT modify Organization A member roles or remove members', async () => {
+    const roleRes = await request(app)
+      .patch('/api/v1/members/mem_1/role')
+      .set('Authorization', `Bearer ${tokenOrgB}`)
+      .send({ role: 'MEMBER' });
+
+    expect([403, 404]).toContain(roleRes.status);
+    expect(roleRes.body.error).toBeDefined();
+
+    const deleteRes = await request(app)
+      .delete('/api/v1/members/mem_1')
+      .set('Authorization', `Bearer ${tokenOrgB}`);
+
+    expect([403, 404]).toContain(deleteRes.status);
+    expect(deleteRes.body.error).toBeDefined();
+  });
 });

@@ -40,3 +40,9 @@ Thumbs.db
 *.orig
 
 .vercel
+
+# Media and packaging artifacts
+*.zip
+*.webp
+walkthrough_package/
+

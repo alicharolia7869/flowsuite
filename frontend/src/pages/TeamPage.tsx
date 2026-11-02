@@ -11,6 +11,12 @@ import {
   Mail,
   Calendar,
   Sparkles,
+  Copy,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth, Role } from '../context/AuthContext';
@@ -28,16 +34,20 @@ interface InviteInput {
 
 export const TeamPage: React.FC = () => {
   const { currentOrg, hasRole, user } = useAuth();
-  const { success: toastSuccess, error: toastError } = useToast();
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const queryClient = useQueryClient();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<any | null>(null);
   const [seatLimitError, setSeatLimitError] = useState<string | null>(null);
+  const [newlyCreatedInvite, setNewlyCreatedInvite] = useState<any | null>(null);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const { data: teamData, isLoading } = useQuery({
-    queryKey: ['members', currentOrg?.id],
-    queryFn: () => api.get<{ members: any[] }>('/members'),
+    queryKey: ['members', currentOrg?.id, page],
+    queryFn: () => api.get<{ members: any[]; pagination?: any }>(`/members?page=${page}&pageSize=${pageSize}`),
   });
 
   const { data: usageData } = useQuery({
@@ -45,18 +55,28 @@ export const TeamPage: React.FC = () => {
     queryFn: () => api.get<any>('/usage'),
   });
 
+  const { data: invitationsData } = useQuery({
+    queryKey: ['invitations', currentOrg?.id],
+    queryFn: () => api.get<{ invitations: any[] }>('/members/invitations'),
+    enabled: hasRole(['OWNER', 'ADMIN']),
+  });
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteInput>({
     defaultValues: { role: 'MEMBER' },
   });
 
   const inviteMutation = useMutation({
-    mutationFn: (body: InviteInput) => api.post('/members/invite', body),
-    onSuccess: () => {
+    mutationFn: (body: InviteInput) => api.post<any>('/members/invite', body),
+    onSuccess: (data) => {
       toastSuccess('Team member invited successfully.');
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['usage'] });
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
       setIsInviteModalOpen(false);
       setSeatLimitError(null);
+      if (data?.invitation) {
+        setNewlyCreatedInvite(data.invitation);
+      }
       reset();
     },
     onError: (err: any) => {
@@ -89,7 +109,26 @@ export const TeamPage: React.FC = () => {
     onError: (err: any) => toastError(err.message || 'Failed to remove member.'),
   });
 
+  const revokeInviteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/members/invitations/${id}`),
+    onSuccess: () => {
+      toastSuccess('Invitation revoked successfully.');
+      queryClient.invalidateQueries({ queryKey: ['invitations'] });
+    },
+    onError: (err: any) => toastError(err.message || 'Failed to revoke invitation.'),
+  });
+
+  const copyInviteLink = (token: string) => {
+    const inviteUrl = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(inviteUrl);
+    setCopiedToken(token);
+    toastInfo('Invitation link copied to clipboard!');
+    setTimeout(() => setCopiedToken(null), 3000);
+  };
+
   const members = teamData?.members || [];
+  const pagination = teamData?.pagination || { page: 1, totalPages: 1, total: members.length };
+  const pendingInvitations = invitationsData?.invitations || [];
   const seatsUsed = usageData?.seats?.used || members.length;
   const seatLimit = usageData?.seats?.limit || 3;
 
@@ -149,6 +188,12 @@ export const TeamPage: React.FC = () => {
         </div>
       ) : (
         <div className="glass-card rounded-2xl border border-slate-800/80 overflow-hidden shadow-xl">
+          <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-slate-200">Active Members ({members.length})</h3>
+            <span className="text-xs text-slate-500 font-mono">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
@@ -163,7 +208,6 @@ export const TeamPage: React.FC = () => {
               <tbody className="divide-y divide-slate-800/60">
                 {members.map((m) => {
                   const isSelf = m.userId === user?.id;
-                  const isOwner = m.role === 'OWNER';
 
                   return (
                     <tr key={m.id} className="hover:bg-slate-900/40 transition-colors">
@@ -238,7 +282,145 @@ export const TeamPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Members Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="p-3.5 border-t border-slate-800/80 flex items-center justify-between">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <span className="text-xs text-slate-400 font-mono">
+                Page {page} of {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                disabled={page >= pagination.totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Pending Invitations Section (OWNER / ADMIN) */}
+      {hasRole(['OWNER', 'ADMIN']) && pendingInvitations.length > 0 && (
+        <div className="glass-card rounded-2xl border border-slate-800/80 overflow-hidden shadow-xl mt-6">
+          <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-slate-200 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400" />
+              Pending Invitations ({pendingInvitations.length})
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr>
+                  <th className="px-5 py-3">Invited Email</th>
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Expires</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {pendingInvitations.map((inv: any) => (
+                  <tr key={inv.id} className="hover:bg-slate-900/40 transition-colors">
+                    <td className="px-5 py-3 text-slate-200 font-mono font-medium">
+                      {inv.email}
+                    </td>
+                    <td className="px-5 py-3">
+                      <Badge variant="blue" size="sm">
+                        {inv.role}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-3 text-slate-400">
+                      {new Date(inv.expiresAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => copyInviteLink(inv.token)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+                          title="Copy invitation acceptance link"
+                        >
+                          {copiedToken === inv.token ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" /> Copy Link
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => revokeInviteMutation.mutate(inv.id)}
+                          disabled={revokeInviteMutation.isPending}
+                          className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                          title="Revoke invitation"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Newly Created Invite Success Modal */}
+      {newlyCreatedInvite && (
+        <Modal
+          isOpen={!!newlyCreatedInvite}
+          onClose={() => setNewlyCreatedInvite(null)}
+          title="Invitation Dispatched!"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-slate-300 leading-relaxed">
+              An invitation has been generated for{' '}
+              <strong className="text-white">{newlyCreatedInvite.email}</strong> with role{' '}
+              <Badge variant="brand" size="sm">{newlyCreatedInvite.role}</Badge>.
+            </p>
+
+            <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-2">
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                Shareable Invitation Link:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}/invite/${newlyCreatedInvite.token}`}
+                  className="w-full text-xs font-mono bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-300"
+                />
+                <button
+                  onClick={() => copyInviteLink(newlyCreatedInvite.token)}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-brand-400 hover:bg-brand-300 rounded-lg shrink-0 flex items-center gap-1"
+                >
+                  {copiedToken === newlyCreatedInvite.token ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setNewlyCreatedInvite(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Invite Member Modal with Plan Enforcement */}

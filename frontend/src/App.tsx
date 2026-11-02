@@ -11,6 +11,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordResetPages';
+import { AcceptInvitationPage } from './pages/AcceptInvitationPage';
 
 // Authenticated Pages
 import { DashboardPage } from './pages/DashboardPage';
@@ -45,6 +46,9 @@ export const App: React.FC = () => {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/invite/:token" element={<AcceptInvitationPage />} />
+              <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+              <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
               {/* Authenticated Workspace Routes */}
               <Route element={<AppLayout />}>

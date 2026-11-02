@@ -121,6 +121,75 @@ export const swaggerDocument = {
         },
       },
     },
+    '/auth/logout': {
+      post: {
+        summary: 'User Logout (Revokes Refresh Session)',
+        security: [],
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  refreshToken: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Logged out successfully' },
+        },
+      },
+    },
+    '/auth/forgot-password': {
+      post: {
+        summary: 'Request Password Reset Link/Token',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email'],
+                properties: {
+                  email: { type: 'string', example: 'owner@acme.com' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Reset token dispatched' },
+        },
+      },
+    },
+    '/auth/reset-password': {
+      post: {
+        summary: 'Reset Password with Token',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token', 'newPassword'],
+                properties: {
+                  token: { type: 'string' },
+                  newPassword: { type: 'string', example: 'NewSecret123!' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Password reset successfully' },
+          '400': { description: 'Invalid or expired token' },
+        },
+      },
+    },
     '/auth/me': {
       get: {
         summary: 'Get Authenticated User Profile & Organizations',
@@ -183,6 +252,39 @@ export const swaggerDocument = {
           '403': { description: 'Requires OWNER role' },
         },
       },
+      delete: {
+        summary: 'Delete Organization (OWNER only)',
+        responses: {
+          '200': { description: 'Organization deleted' },
+          '403': { description: 'Requires OWNER role' },
+        },
+      },
+    },
+    '/organizations/{id}': {
+      get: {
+        summary: 'Get Organization by ID (Tenant isolated)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Organization metadata' },
+          '403': { description: 'Forbidden if cross-tenant' },
+        },
+      },
+      patch: {
+        summary: 'Update Organization by ID (OWNER only)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Updated' },
+          '403': { description: 'Requires OWNER role' },
+        },
+      },
+      delete: {
+        summary: 'Delete Organization by ID (OWNER only)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Organization deleted' },
+          '403': { description: 'Requires OWNER role' },
+        },
+      },
     },
     '/members': {
       get: {
@@ -193,6 +295,16 @@ export const swaggerDocument = {
         ],
         responses: {
           '200': { description: 'Members list with pagination' },
+        },
+      },
+    },
+    '/members/{id}': {
+      delete: {
+        summary: 'Remove Member from Organization (OWNER only)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Member removed' },
+          '403': { description: 'Requires OWNER role' },
         },
       },
     },
@@ -230,8 +342,10 @@ export const swaggerDocument = {
     '/members/{id}/role': {
       patch: {
         summary: 'Change Member Role (OWNER only)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: {
           '200': { description: 'Role changed' },
+          '403': { description: 'Requires OWNER role' },
         },
       },
     },
@@ -257,6 +371,33 @@ export const swaggerDocument = {
         },
       },
     },
+    '/projects/{id}': {
+      get: {
+        summary: 'Get Project by ID (Tenant & Role scoped)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Project details' },
+          '403': { description: 'Forbidden if MEMBER not assigned or cross-tenant' },
+          '404': { description: 'Project not found' },
+        },
+      },
+      patch: {
+        summary: 'Update Project (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Project updated' },
+          '403': { description: 'Forbidden for MEMBER' },
+        },
+      },
+      delete: {
+        summary: 'Delete Project (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Project deleted' },
+          '403': { description: 'Forbidden for MEMBER' },
+        },
+      },
+    },
     '/tasks': {
       get: {
         summary: 'List Tasks (Role-scoped, Paginated)',
@@ -275,6 +416,34 @@ export const swaggerDocument = {
         summary: 'Create Task (OWNER/ADMIN/MANAGER)',
         responses: {
           '201': { description: 'Task created' },
+          '403': { description: 'Forbidden for MEMBER' },
+        },
+      },
+    },
+    '/tasks/{id}': {
+      get: {
+        summary: 'Get Task by ID (Tenant & Role scoped)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Task details' },
+          '403': { description: 'Forbidden if unassigned MEMBER or cross-tenant' },
+          '404': { description: 'Task not found' },
+        },
+      },
+      patch: {
+        summary: 'Update Task (Status only for MEMBER; full for OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Task updated' },
+          '403': { description: 'Forbidden' },
+        },
+      },
+      delete: {
+        summary: 'Delete Task (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Task deleted' },
+          '403': { description: 'Forbidden for MEMBER' },
         },
       },
     },
@@ -289,12 +458,41 @@ export const swaggerDocument = {
         ],
         responses: {
           '200': { description: 'Customers list with pagination' },
+          '403': { description: 'Forbidden for MEMBER' },
         },
       },
       post: {
         summary: 'Create Customer (OWNER/ADMIN/MANAGER)',
         responses: {
           '201': { description: 'Customer created' },
+          '403': { description: 'Forbidden for MEMBER' },
+        },
+      },
+    },
+    '/customers/{id}': {
+      get: {
+        summary: 'Get Customer by ID (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Customer details' },
+          '403': { description: 'Forbidden for MEMBER or cross-tenant' },
+          '404': { description: 'Customer not found' },
+        },
+      },
+      patch: {
+        summary: 'Update Customer (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Customer updated' },
+          '403': { description: 'Forbidden for MEMBER' },
+        },
+      },
+      delete: {
+        summary: 'Delete Customer (OWNER/ADMIN/MANAGER)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Customer deleted' },
+          '403': { description: 'Forbidden for MEMBER' },
         },
       },
     },

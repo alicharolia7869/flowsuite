@@ -11,6 +11,8 @@ import {
   Trash2,
   FolderKanban,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -24,17 +26,21 @@ export const CustomersPage: React.FC = () => {
   const { success: toastSuccess, error: toastError } = useToast();
   const queryClient = useQueryClient();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [search, setSearch] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<any | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', currentOrg?.id, search],
+    queryKey: ['customers', currentOrg?.id, search, page],
     queryFn: () => {
       const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
       if (search) params.append('search', search);
-      return api.get<{ customers: any[] }>(`/customers?${params.toString()}`);
+      return api.get<{ customers: any[]; pagination?: any }>(`/customers?${params.toString()}`);
     },
   });
 
@@ -202,6 +208,29 @@ export const CustomersPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {data?.pagination && data.pagination.totalPages > 1 && (
+            <div className="p-3.5 border-t border-slate-800/80 flex items-center justify-between">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <span className="text-xs text-slate-400 font-mono">
+                Page {page} of {data.pagination.totalPages} ({data.pagination.total} clients)
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+                disabled={page >= data.pagination.totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

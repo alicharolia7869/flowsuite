@@ -11,6 +11,8 @@ import {
   User as UserIcon,
   FolderKanban,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +27,8 @@ export const TasksPage: React.FC = () => {
   const { success: toastSuccess, error: toastError } = useToast();
   const queryClient = useQueryClient();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [projectFilter, setProjectFilter] = useState('ALL');
@@ -32,12 +36,14 @@ export const TasksPage: React.FC = () => {
   const [taskToDelete, setTaskToDelete] = useState<any | null>(null);
 
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ['tasks', currentOrg?.id, statusFilter, projectFilter],
+    queryKey: ['tasks', currentOrg?.id, statusFilter, projectFilter, page],
     queryFn: () => {
       const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
       if (statusFilter !== 'ALL') params.append('status', statusFilter);
       if (projectFilter !== 'ALL') params.append('projectId', projectFilter);
-      return api.get<{ tasks: any[] }>(`/tasks?${params.toString()}`);
+      return api.get<{ tasks: any[]; pagination?: any }>(`/tasks?${params.toString()}`);
     },
   });
 
@@ -267,6 +273,29 @@ export const TasksPage: React.FC = () => {
               </div>
             );
           })}
+
+          {/* Pagination Controls */}
+          {tasksData?.pagination && tasksData.pagination.totalPages > 1 && (
+            <div className="glass-card p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <span className="text-xs text-slate-400 font-mono">
+                Page {page} of {tasksData.pagination.totalPages} ({tasksData.pagination.total} tasks)
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(tasksData.pagination.totalPages, p + 1))}
+                disabled={page >= tasksData.pagination.totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

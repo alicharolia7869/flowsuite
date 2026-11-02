@@ -12,6 +12,8 @@ import {
   Archive,
   Users,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +33,8 @@ export const ProjectsPage: React.FC = () => {
   const { success: toastSuccess, error: toastError } = useToast();
   const queryClient = useQueryClient();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 9;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -41,12 +45,14 @@ export const ProjectsPage: React.FC = () => {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['projects', currentOrg?.id, search, statusFilter],
+    queryKey: ['projects', currentOrg?.id, search, statusFilter, page],
     queryFn: () => {
       const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
       if (search) params.append('search', search);
       if (statusFilter !== 'ALL') params.append('status', statusFilter);
-      return api.get<{ projects: any[] }>(`/projects?${params.toString()}`);
+      return api.get<{ projects: any[]; pagination?: any }>(`/projects?${params.toString()}`);
     },
   });
 
@@ -205,6 +211,29 @@ export const ProjectsPage: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {data?.pagination && data.pagination.totalPages > 1 && (
+        <div className="glass-card p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <span className="text-xs text-slate-400 font-mono">
+            Page {page} of {data.pagination.totalPages} ({data.pagination.total} total)
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+            disabled={page >= data.pagination.totalPages}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-900 border border-slate-800 disabled:opacity-40 transition-colors"
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 

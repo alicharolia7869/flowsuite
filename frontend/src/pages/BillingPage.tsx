@@ -10,6 +10,9 @@ import {
   ExternalLink,
   RefreshCw,
   TrendingUp,
+  FileText,
+  Download,
+  AlertCircle,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -21,8 +24,6 @@ export const BillingPage: React.FC = () => {
   const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const queryClient = useQueryClient();
 
-  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
-
   const { data: plansData, isLoading: plansLoading } = useQuery({
     queryKey: ['plans'],
     queryFn: () => api.get<{ plans: any[] }>('/plans'),
@@ -31,6 +32,12 @@ export const BillingPage: React.FC = () => {
   const { data: subData, isLoading: subLoading } = useQuery({
     queryKey: ['subscription', currentOrg?.id],
     queryFn: () => api.get<{ subscription: any; entitlements: any }>('/subscription'),
+  });
+
+  const { data: invoicesData } = useQuery({
+    queryKey: ['invoices', currentOrg?.id],
+    queryFn: () => api.get<{ invoices: any[] }>('/billing/invoices'),
+    enabled: hasRole(['OWNER']),
   });
 
   // Stripe Checkout Mutation
@@ -63,6 +70,7 @@ export const BillingPage: React.FC = () => {
   const currentSub = subData?.subscription;
   const entitlements = subData?.entitlements;
   const currentPlanName = entitlements?.planName || currentOrg?.plan || 'FREE';
+  const invoices = invoicesData?.invoices || [];
 
   return (
     <div className="space-y-8">
@@ -132,6 +140,16 @@ export const BillingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Non-owner Alert if viewing */}
+      {!hasRole(['OWNER']) && (
+        <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>
+            You are viewing billing in read-only mode. Only the Organization <strong>OWNER</strong> can initiate payments or modify subscription tiers.
+          </span>
+        </div>
+      )}
 
       {/* Plan Tier Pricing Cards */}
       <div>
@@ -251,6 +269,81 @@ export const BillingPage: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Phase 12: Billing History & Invoices Section for Owners */}
+      {hasRole(['OWNER']) && (
+        <div className="glass-card rounded-2xl border border-slate-800/80 overflow-hidden shadow-xl">
+          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <FileText className="w-4 h-4 text-brand-400" />
+                Billing History & Invoices
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Download past tax invoices, view charges, and monitor transaction statuses.
+              </p>
+            </div>
+            <Badge variant="brand" size="sm">
+              Stripe Test Mode
+            </Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+                <tr>
+                  <th className="px-5 py-3.5">Invoice ID</th>
+                  <th className="px-5 py-3.5">Date</th>
+                  <th className="px-5 py-3.5">Plan / Description</th>
+                  <th className="px-5 py-3.5">Amount</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Receipt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                      No invoices recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  invoices.map((inv: any) => (
+                    <tr key={inv.id} className="hover:bg-slate-900/40 transition-colors">
+                      <td className="px-5 py-4 font-mono font-medium text-slate-200">
+                        {inv.invoiceNumber || inv.id}
+                      </td>
+                      <td className="px-5 py-4 text-slate-400">
+                        {new Date(inv.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-5 py-4 text-slate-200">
+                        FlowSuite {inv.planName || currentPlanName} Plan
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-100 font-mono">
+                        ₹{inv.amount} {inv.currency || 'INR'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Badge variant="emerald" size="sm">
+                          <Check className="w-3 h-3" />
+                          {inv.status || 'PAID'}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          onClick={() => toastInfo(`Viewing invoice ${inv.invoiceNumber || inv.id}`)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700/60"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

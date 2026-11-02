@@ -463,9 +463,6 @@ export async function acceptInvitation(req: Request, res: Response, next: NextFu
       throw new AppError('This invitation has expired or has already been accepted.', 'INVITATION_EXPIRED', 400);
     }
 
-    // Enforce seat limit before accepting
-    await assertEntitlementLimit(invitation.organizationId, 'SEAT_LIMIT');
-
     const normalizedEmail = invitation.email.toLowerCase().trim();
 
     // Check if user already exists
@@ -498,6 +495,7 @@ export async function acceptInvitation(req: Request, res: Response, next: NextFu
           throw new AppError('Users can belong to only one organization for this project.', 'USER_ALREADY_IN_ANOTHER_ORGANIZATION', 400);
         }
       } else {
+        await assertEntitlementLimit(invitation.organizationId, 'SEAT_LIMIT');
         membership = await prisma.membership.create({
           data: {
             userId: user.id,
@@ -507,6 +505,7 @@ export async function acceptInvitation(req: Request, res: Response, next: NextFu
         });
       }
     } else {
+      await assertEntitlementLimit(invitation.organizationId, 'SEAT_LIMIT');
       if (!name || !password) {
         throw new AppError('Name and password are required to accept invitation and create account.', 'VALIDATION_ERROR', 400);
       }

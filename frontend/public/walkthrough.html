@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowSuite — How to Use This App | Interactive Video Walkthrough</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-border: rgba(51, 65, 85, 0.6);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
+      --accent-blue: #0ea5e9;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ambient glow */
+    .glow-top {
+      position: fixed;
+      top: -150px;
+      left: 20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-bottom {
+      position: fixed;
+      bottom: -150px;
+      right: 15%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #10b981, #0ea5e9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-launch {
+      padding: 0.5rem 1.15rem;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #020617;
+      font-weight: 700;
+      font-size: 0.85rem;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-launch:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+
+    main {
+      position: relative;
+      z-index: 10;
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Player Container */
+    .player-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewport-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #090d16;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide-media {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.3s ease;
+    }
+
+    .viewport-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(2, 6, 23, 0.75);
+      backdrop-filter: blur(10px);
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Control Bar */
+    .player-controls {
+      padding: 1.25rem;
+      border-top: 1px solid var(--card-border);
+      background: rgba(11, 19, 38, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #0ea5e9);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .ctrl-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .ctrl-btn.active {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #34d399;
+    }
+
+    .time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Explanation Info */
+    .step-info {
+      padding: 1.5rem;
+    }
+
+    .step-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .step-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      color: #fff;
+    }
+
+    .step-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .action-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #cbd5e1;
+    }
+
+    /* Sidebar Playlist */
+    .playlist-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-height: 850px;
+      overflow: hidden;
+    }
+
+    .playlist-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .playlist-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .playlist-items {
+      overflow-y: auto;
+      flex: 1;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .item-card {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.65rem;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .item-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .item-card.active {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .thumb-wrap {
+      width: 76px;
+      height: 48px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .item-details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #f1f5f9;
+    }
+
+    .item-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Video recording banner */
+    .record-banner {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(14, 165, 233, 0.1));
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 16px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .record-info h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #6ee7b7;
+      margin-bottom: 2px;
+    }
+
+    .record-info p {
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+
+    .badge-pill {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-top"></div>
+  <div class="glow-bottom"></div>
+
+  <header>
+    <a href="http://localhost:5173/dashboard" class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span class="brand-title">FlowSuite</span>
+          <span class="brand-badge">Guide Video</span>
+        </div>
+      </div>
+    </a>
+    <div class="header-actions">
+      <a href="http://localhost:5173/login" target="_blank" class="btn-launch">
+        <span>Open FlowSuite App</span>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div style="display:flex; flex-direction:column;">
+      <div class="record-banner">
+        <div class="record-info">
+          <h4>🎬 Interactive Video Walkthrough</h4>
+          <p>Full walkthrough of authentication, project lifecycles, task tracking, CRM, team RBAC, quotas, and Stripe billing.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span class="badge-pill">11 Core Modules</span>
+        </div>
+      </div>
+
+      <div class="player-card">
+        <div class="viewport-wrapper">
+          <img id="mainMedia" src="walkthrough/01_login_screen.png" alt="Walkthrough frame" class="slide-media" />
+          <div class="viewport-overlay">
+            <span class="live-dot"></span>
+            <span id="stepCounter">Step 1 of 11</span>
+          </div>
+        </div>
+
+        <div class="player-controls">
+          <div class="progress-bar-container" id="progressBar">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+
+          <div class="controls-row">
+            <div class="btn-group">
+              <button class="ctrl-btn" id="prevBtn" title="Previous Step">⏮ Prev</button>
+              <button class="ctrl-btn active" id="playBtn" title="Play / Pause Auto Walkthrough">▶ Auto-Play</button>
+              <button class="ctrl-btn" id="nextBtn" title="Next Step">Next ⏭</button>
+              <button class="ctrl-btn" id="voiceBtn" title="Audio Narration (Web Speech)">🔊 Voice: ON</button>
+              <button class="ctrl-btn" id="toggleRecordingBtn" title="Watch Realtime Browser Recording">🎥 Subagent Video</button>
+            </div>
+            <div class="time-display" id="timeDisplay">Step 01 / 11</div>
+          </div>
+        </div>
+
+        <div class="step-info">
+          <div class="step-tag" id="stepTag">Module 01: Authentication</div>
+          <h2 class="step-title" id="stepTitle">Sign In & 1-Click Role Login</h2>
+          <p class="step-desc" id="stepDesc">
+            FlowSuite features instant 1-click test credentials for Owner, Admin, Manager, and Member tiers, plus pre-filled credentials for Acme Corp. Simply click Sign In to gain instant access.
+          </p>
+          <div class="action-chips" id="actionChips">
+            <span class="chip">Default: owner@acme.com</span>
+            <span class="chip">Password: Password123!</span>
+            <span class="chip">Role: Organization Owner</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playlist / Navigation Sidebar -->
+    <div class="playlist-card">
+      <div class="playlist-header">
+        <h3>Walkthrough Chapters</h3>
+        <span style="font-size:0.75rem; color:#94a3b8;" id="totalSteps">11 Steps</span>
+      </div>
+      <div class="playlist-items" id="playlistItems">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const steps = [
+      {
+        tag: "Module 01: Authentication",
+        title: "Sign In & 1-Click Role Login",
+        desc: "FlowSuite features secure JWT authentication with pre-seeded test accounts for OWNER, ADMIN, MANAGER, and MEMBER roles. Click 'Sign In' or use the 1-click demo buttons at the bottom to sign in instantly.",
+        media: "walkthrough/01_login_screen.png",
+        chips: ["URL: /login", "Email: owner@acme.com", "Password: Password123!"],
+        narration: "Welcome to FlowSuite. To get started, navigate to the login page and use the pre-filled credentials or the 1-click demo login buttons to sign in as the organization owner."
+      },
+      {
+        tag: "Module 02: Dashboard Cockpit",
+        title: "Workspace Overview & Live Gauges",
+        desc: "The central command center provides real-time visibility into active projects, pending tasks, team seat quotas, and high-frequency API consumption meters, backed by TanStack Query for live data sync.",
+        media: "walkthrough/02_dashboard_overview.png",
+        chips: ["Live Metrics", "Quota Meters", "Recent Activity"],
+        narration: "Upon signing in, you land on the Dashboard cockpit, displaying live project counts, task statuses, team seat utilization, and real-time API call metrics."
+      },
+      {
+        tag: "Module 03: Project Management",
+        title: "Create & Orchestrate Projects",
+        desc: "Manage multi-tiered initiatives. Create a project with title, description, target delivery date, and budget. Dynamic entitlement quotas prevent resource overruns based on your active plan.",
+        media: "walkthrough/03_projects_page.png",
+        chips: ["URL: /projects", "+ New Project", "Status: IN_PROGRESS"],
+        narration: "In the Projects view, you can track all organizational initiatives. Click 'Create Project' to launch a new project like the Enterprise AI Copilot with budget and milestones."
+      },
+      {
+        tag: "Module 04: Project Execution",
+        title: "Deep Project Details & Linked Tasks",
+        desc: "Click any project card to open its dedicated cockpit. Inspect status progression, linked tasks, assignees, dates, and budget health with instant state updates.",
+        media: "walkthrough/04_project_detail.png",
+        chips: ["URL: /projects/:id", "Progress Bar", "Linked Tasks"],
+        narration: "Selecting a project opens its comprehensive detail page, giving you complete visibility over delivery progress, budget, and linked tasks."
+      },
+      {
+        tag: "Module 05: Task Workflows",
+        title: "Kanban & Task Lifecycle Tracking",
+        desc: "Organize work with multi-status task workflows (TODO, IN_PROGRESS, DONE). Filter by priority, assignee, or status. Click 'Create Task' to assign items directly to team members.",
+        media: "walkthrough/05_tasks_page.png",
+        chips: ["URL: /tasks", "Priorities: Low/Med/High", "Filter: Status"],
+        narration: "Navigate to Tasks to manage actionable work items. Filter tasks by status and priority, and create new engineering tasks like the Stripe Webhook Handler."
+      },
+      {
+        tag: "Module 06: CRM Directory",
+        title: "Customer & Client Relationship Hub",
+        desc: "Track client organizations, contact details, account values, and lifecycle statuses (Lead, Active, Inactive). Easily add new clients with the 'Add Customer' modal.",
+        media: "walkthrough/06_customers_crm.png",
+        chips: ["URL: /customers", "+ Add Customer", "Company Directory"],
+        narration: "Under Customers, maintain your B2B client relationships, contact profiles, and account values with an integrated CRM directory."
+      },
+      {
+        tag: "Module 07: Team & RBAC",
+        title: "Member Roster & Permission Control",
+        desc: "Enforce strict 4-tier Role-Based Access Control (OWNER, ADMIN, MANAGER, MEMBER). Send email invitations with custom roles and track accepted team seats.",
+        media: "walkthrough/07_team_rbac.png",
+        chips: ["URL: /team", "Invite Member", "Roles: OWNER/ADMIN/MGR/MEM"],
+        narration: "The Team management screen lets you enforce role-based access control. Click Invite Member to send an invitation with tailored permissions."
+      },
+      {
+        tag: "Module 08: Resource Quotas",
+        title: "Real-Time Usage & Rate Gauges",
+        desc: "Monitor database-enforced plan limits including project caps, team member seats, storage utilization, and daily API request velocity graphs.",
+        media: "walkthrough/08_usage_metrics.png",
+        chips: ["URL: /usage", "API Velocity Chart", "Plan Quotas"],
+        narration: "The Usage dashboard offers real-time telemetry into your active plan quotas, showing API request velocity charts and resource limits."
+      },
+      {
+        tag: "Module 09: Subscriptions & Billing",
+        title: "Dynamic Plan Tiers & Stripe Test Billing",
+        desc: "Compare Free, Starter, and Professional plans. Simulate instant Stripe test upgrades, review active invoices, and explore features unlocked per tier.",
+        media: "walkthrough/09_billing_plans.png",
+        chips: ["URL: /billing", "Starter / Pro Tier", "Stripe Simulation"],
+        narration: "Under Billing, compare plan tiers, manage your subscription, and simulate Stripe test checkout upgrades with zero downtime."
+      },
+      {
+        tag: "Module 10: Security & Audit Trail",
+        title: "Immutable Compliance & Event Logs",
+        desc: "Inspect full audit logs tracking logins, project creations, task updates, and security events with timestamps and actor IP addresses for SOC-2 compliance.",
+        media: "walkthrough/10_audit_logs.png",
+        chips: ["URL: /audit-logs", "Event Actors", "Timestamp Logs"],
+        narration: "The Audit Logs tab provides an immutable audit trail capturing every operational event, actor identity, and timestamp for security compliance."
+      },
+      {
+        tag: "Module 11: Settings & Isolation",
+        title: "Workspace Profile & Tenant Isolation",
+        desc: "Configure organization profile settings, view active organization identifiers, and switch between multi-tenant workspaces with zero data leakage.",
+        media: "walkthrough/11_settings_page.png",
+        chips: ["URL: /settings", "Org Settings", "Tenant Isolation"],
+        narration: "Finally, Settings allows you to configure your workspace profile and organization identity, ensuring complete logical tenant isolation."
+      }
+    ];
+
+    let currentIndex = 0;
+    let isPlaying = true;
+    let voiceEnabled = true;
+    let timer = null;
+    const STEP_DURATION = 6000; // 6 seconds per step
+    let showingRawRecording = false;
+
+    const mainMedia = document.getElementById('mainMedia');
+    const stepCounter = document.getElementById('stepCounter');
+    const progressFill = document.getElementById('progressFill');
+    const stepTag = document.getElementById('stepTag');
+    const stepTitle = document.getElementById('stepTitle');
+    const stepDesc = document.getElementById('stepDesc');
+    const actionChips = document.getElementById('actionChips');
+    const playlistItems = document.getElementById('playlistItems');
+    const playBtn = document.getElementById('playBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const toggleRecordingBtn = document.getElementById('toggleRecordingBtn');
+
+    // Build sidebar playlist
+    steps.forEach((step, idx) => {
+      const item = document.createElement('div');
+      item.className = `item-card ${idx === 0 ? 'active' : ''}`;
+      item.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${step.media}" alt="${step.title}">
+        </div>
+        <div class="item-details">
+          <div class="item-title">${step.title}</div>
+          <div class="item-meta">Step ${idx + 1} • ${step.tag.split(':')[1] || step.tag}</div>
+        </div>
+      `;
+      item.addEventListener('click', () => {
+        showingRawRecording = false;
+        toggleRecordingBtn.classList.remove('active');
+        toggleRecordingBtn.textContent = '🎥 Subagent Video';
+        goToStep(idx);
+      });
+      playlistItems.appendChild(item);
+    });
+
+    function speak(text) {
+      if (!voiceEnabled || !window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function renderStep() {
+      const step = steps[currentIndex];
+      if (!showingRawRecording) {
+        mainMedia.src = step.media;
+      }
+      stepCounter.textContent = `Step ${currentIndex + 1} of ${steps.length}`;
+      timeDisplay.textContent = `Step ${String(currentIndex + 1).padStart(2, '0')} / ${steps.length}`;
+      stepTag.textContent = step.tag;
+      stepTitle.textContent = step.title;
+      stepDesc.textContent = step.desc;
+
+      actionChips.innerHTML = '';
+      step.chips.forEach(chip => {
+        const el = document.createElement('span');
+        el.className = 'chip';
+        el.textContent = chip;
+        actionChips.appendChild(el);
+      });
+
+      // Update sidebar active state
+      document.querySelectorAll('.item-card').forEach((el, idx) => {
+        el.classList.toggle('active', idx === currentIndex);
+      });
+
+      // Progress bar
+      const pct = ((currentIndex + 1) / steps.length) * 100;
+      progressFill.style.width = `${pct}%`;
+
+      speak(step.narration);
+    }
+
+    function goToStep(idx) {
+      currentIndex = (idx + steps.length) % steps.length;
+      renderStep();
+      if (isPlaying) {
+        resetTimer();
+      }
+    }
+
+    function nextStep() {
+      goToStep(currentIndex + 1);
+    }
+
+    function prevStep() {
+      goToStep(currentIndex - 1);
+    }
+
+    function resetTimer() {
+      clearInterval(timer);
+      if (isPlaying) {
+        timer = setInterval(nextStep, STEP_DURATION);
+      }
+    }
+
+    playBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      playBtn.classList.toggle('active', isPlaying);
+      playBtn.textContent = isPlaying ? '⏸ Pause' : '▶ Auto-Play';
+      if (isPlaying) {
+        resetTimer();
+      } else {
+        clearInterval(timer);
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      }
+    });
+
+    prevBtn.addEventListener('click', prevStep);
+    nextBtn.addEventListener('click', nextStep);
+
+    voiceBtn.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      voiceBtn.classList.toggle('active', voiceEnabled);
+      voiceBtn.textContent = voiceEnabled ? '🔊 Voice: ON' : '🔈 Voice: OFF';
+      if (!voiceEnabled && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      } else if (voiceEnabled) {
+        speak(steps[currentIndex].narration);
+      }
+    });
+
+    toggleRecordingBtn.addEventListener('click', () => {
+      showingRawRecording = !showingRawRecording;
+      toggleRecordingBtn.classList.toggle('active', showingRawRecording);
+      if (showingRawRecording) {
+        mainMedia.src = 'walkthrough/flowsuite_app_walkthrough_1791460935359.webp';
+        toggleRecordingBtn.textContent = '🖼️ Back to Slides';
+      } else {
+        mainMedia.src = steps[currentIndex].media;
+        toggleRecordingBtn.textContent = '🎥 Subagent Video';
+      }
+    });
+
+    // Start auto-playback
+    renderStep();
+    resetTimer();
+  </script>
+</body>
+</html>
