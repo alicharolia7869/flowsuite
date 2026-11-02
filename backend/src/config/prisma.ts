@@ -1,6 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { env } from './env';
+
+let PrismaClientClass: any;
+try {
+  // Dynamically load PrismaClient if present, preventing runtime crashes in standalone/serverless memory mode
+  PrismaClientClass = require('@prisma/client').PrismaClient;
+} catch {
+  // Prisma client not available; fallback to in-memory database
+}
 
 // Memory Store for fallback / local testing when external PostgreSQL is not running
 class MemoryTable<T extends { id: string; [key: string]: any }> {
@@ -749,9 +757,9 @@ const shouldUseMemoryDb = process.env.FORCE_MEMORY_DB || (Boolean(process.env.VE
 // Attempt PostgreSQL client connection, or fallback to memoryDb
 let activeClient: any = memoryDb;
 
-if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb) {
+if (process.env.NODE_ENV !== 'test' && env.DATABASE_URL && !shouldUseMemoryDb && PrismaClientClass) {
   try {
-    const realPrisma = new PrismaClient({
+    const realPrisma = new PrismaClientClass({
       datasources: {
         db: {
           url: env.DATABASE_URL,
