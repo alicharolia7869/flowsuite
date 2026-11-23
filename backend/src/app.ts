@@ -27,17 +27,39 @@ app.use(helmet({
 }));
 
 // CORS Middleware
+const allowedOrigins = [
+  env.CLIENT_URL,
+  'https://flowsuite-one.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    env.CLIENT_URL,
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-  ],
+  origin: (origin, callback) => {
+    // Allow non-browser requests or same-origin/internal requests
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow any Vercel preview or production deployment subdomains
+    if (/^https:\/\/[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-organization-id', 'stripe-signature'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-organization-id',
+    'stripe-signature',
+    'x-vercel-protection-bypass',
+    'x-requested-with',
+    'Accept',
+  ],
 }));
 
 // Body Parsers (Raw body parser for Stripe webhooks if needed)
